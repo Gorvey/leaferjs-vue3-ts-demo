@@ -40,7 +40,14 @@ class LeaferAnnotate implements ILeaferAnnotate {
       wheel: {
         zoomSpeed: 0.05,
       },
-      editor: { rotateable: false, boxSelect: false, multipleSelect: false },
+      editor: {
+        rotateable: false,
+        boxSelect: false,
+        multipleSelect: false,
+        stroke: '#0088ff',
+        strokeWidth: 1,
+        pointSize:5,
+      },
       smooth: true,
       pixelSnap: true,
     })
