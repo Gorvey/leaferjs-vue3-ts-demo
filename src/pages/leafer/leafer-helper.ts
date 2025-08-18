@@ -1,0 +1,108 @@
+import { Resource, Rect, type IRect, DragEvent } from "leafer-ui";
+import type { IMark ,ILeaferAnnotate} from "./leafer.type";
+//#region loadImage
+export interface IImageInfo {
+  /** 图片的url, leafer Resource 的资源路径 */
+  url: string;
+  /** 图片的宽度，单位px */
+  width: number;
+  /** 图片的高度，单位px */
+  height: number;
+}
+
+export function loadImage(src: string, name: string): Promise<IImageInfo> {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+    if (src.includes(";base64")) {
+      image.src = src;
+    } else {
+      image.src = src + "?time=" + new Date().valueOf();
+      image.crossOrigin = "Anonymous";
+    }
+
+    image.onload = () => {
+      const { url } = Resource.setImage(`leafer://${name}`, image);
+      resolve({
+        url: url,
+        width: image.width,
+        height: image.height,
+      });
+    };
+    image.onerror = () => {
+      console.error("底图加载失败");
+      reject("file load iamge");
+    };
+  });
+}
+
+//#endregion
+
+//#region 初始化标注
+
+/**
+ * 将接口给的标注信息处理成leafer rect
+ * @param marks 标注信息
+ * @returns leafer rects
+ */
+export function processMarksToRects(marks: IMark[],instance:ILeaferAnnotate): IRect[] {
+  return marks
+    .filter((mark) => {
+      const hasPoint = mark && mark.top && mark.bottom;
+      if (!hasPoint) return false;
+      return true;
+    })
+    .map((mark) => {
+      const left = Math.min(mark.top.x, mark.bottom.x);
+      const right = Math.max(mark.top.x, mark.bottom.x);
+      const top = Math.min(mark.top.y, mark.bottom.y);
+      const bottom = Math.max(mark.top.y, mark.bottom.y);
+
+      const p1 = { x: left, y: top };
+      const p2 = { x: right, y: bottom };
+      const rect= new Rect({
+        className: "mark",
+        x: p1.x,
+        y: p1.y,
+        width: Math.max(0, Math.abs(p2.x - p1.x)),
+        height: Math.max(0, Math.abs(p2.y - p1.y)),
+        fill: "transparent",
+        stroke: "#ff0000",
+        strokeWidth: 1,
+        cornerRadius: 0,
+        isSnap: true,
+        draggable: true,
+        dragBounds: "parent", // 限制元素拖动范围 //
+        editable: true,
+        data:mark
+      });
+      
+      // 建立响应式数据绑定
+      (rect as any).bindExternalData(mark);
+      
+      bindCloneEvent(rect,instance)
+      return rect
+    });
+}
+
+export function bindCloneEvent(rect: IRect, instance:ILeaferAnnotate) {
+  rect.on([DragEvent.START], (e) => {
+    if (e.ctrlKey && e.left) {
+      const clonedRect = rect.clone({
+        x: rect.x,
+        y: rect.y,
+        data:{}
+      });
+
+      // 交换业务数据  
+      const originalData = rect.data;  
+      const clonedData = clonedRect.data;  
+      rect.data = clonedData;  
+      clonedRect.data = originalData;  
+
+      bindCloneEvent(clonedRect, instance);
+      instance.pageFrame.add(clonedRect);
+    }
+  });
+}
+
+//#endregion

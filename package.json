@@ -1,0 +1,35 @@
+{
+  "name": "leaferjs-vue3-ts-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@leafer-in/editor": "^1.9.4",
+    "@leafer-in/find": "^1.9.4",
+    "@leafer-in/flow": "^1.9.4",
+    "@leafer-in/resize": "^1.9.4",
+    "@leafer-in/state": "^1.9.4",
+    "@leafer-in/view": "^1.9.4",
+    "@leafer-in/viewport": "^1.9.4",
+    "@types/lodash": "^4.17.20",
+    "leafer-ui": "^1.9.4",
+    "leafer-vue": "^3.1.1",
+    "leafer-x-easy-snap": "^1.10.0",
+    "leafer-x-ruler": "^2.0.0",
+    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/tsconfig": "^0.7.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.2",
+    "vue-tsc": "^3.0.5"
+  }
+}
