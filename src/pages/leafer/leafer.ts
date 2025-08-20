@@ -182,12 +182,10 @@ class LeaferAnnotate implements ILeaferAnnotate {
     app.on(PointerEvent.TAP, (e) => {
       this.config?.onElementSelect(e);
     });
-    app.editor.on(EditorEvent.SELECT, (e) => {
+    app.editor.on(EditorEvent.SELECT, () => {
       if (app.editor.target) {
-        app.editor.target.fill = "transparent";
         this.isElementSelected = true;
       } else {
-        e.oldValue.fill = "";
         this.isElementSelected = false;
       }
     });
@@ -222,7 +220,7 @@ class LeaferAnnotate implements ILeaferAnnotate {
               y,
               width,
               height,
-              fill: "",
+              fill: "transparent",
               stroke: "#0088ff",
               editable: true,
               strokeWidth: 1,
@@ -341,7 +339,7 @@ class LeaferAnnotate implements ILeaferAnnotate {
           y: framePoint.y - shapeData.height / 2,
           width: shapeData.width,
           height: shapeData.height,
-          fill: "",
+          fill: "transparent",
           stroke: "#0088ff",
           strokeWidth: 2,
           hitSoroke: "all",
