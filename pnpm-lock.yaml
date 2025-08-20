@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@gorvey/leafer-x-easy-snap':
+        specifier: ^1.20.1
+        version: 1.20.1
       '@leafer-in/editor':
         specifier: ^1.9.4
         version: 1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/core@1.9.4)(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
@@ -17,6 +20,9 @@ importers:
       '@leafer-in/flow':
         specifier: ^1.9.4
         version: 1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
+      '@leafer-in/interface':
+        specifier: ^1.9.4
+        version: 1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4)
       '@leafer-in/resize':
         specifier: ^1.9.4
         version: 1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
@@ -29,6 +35,12 @@ importers:
       '@leafer-in/viewport':
         specifier: ^1.9.4
         version: 1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/core@1.9.4)(@leafer-ui/interface@1.9.4)
+      '@leafer-ui/core':
+        specifier: ^1.9.4
+        version: 1.9.4
+      '@leafer-ui/interface':
+        specifier: ^1.9.4
+        version: 1.9.4
       '@types/lodash':
         specifier: ^4.17.20
         version: 4.17.20
@@ -244,6 +256,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@gorvey/leafer-x-easy-snap@1.20.1':
+    resolution: {integrity: sha512-/k0ICGZaCmJ5RvMcMvSISncs7gMIRmm5hX76/MMZ5QwTJs9aHFcq4LyC6tycVYMyJhXtdd7FZ6+jEjLI+zk2RA==}
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
@@ -871,6 +886,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.25.9':
     optional: true
+
+  '@gorvey/leafer-x-easy-snap@1.20.1': {}
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 

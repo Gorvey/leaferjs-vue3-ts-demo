@@ -31,21 +31,22 @@ export interface LeaferAnnotateConfig {
   onElementSelect(element: IUI): void
 }
 
+export type ActiveTool = 'move' | 'rect' | 'drag' | ''
+
+export interface IPoint {
+  x: number
+  y: number
+}
+
 // 定义 LeaferAnnotate 类的接口，使其结构更清晰
 export interface ILeaferAnnotate {
   config: LeaferAnnotateConfig
   leafer: App
   pageFrame: IFrame
+  activeTool: ActiveTool
+  fillColor:string
 
-  // mode: 'view' | 'edit'
-  editType?: ''
-
+  setActiveTool(tool: ActiveTool): void
   init(): Promise<void>
-  /**
-   * view: 可以缩放，移动页面，可以编辑元素
-   *
-   * edit: 不可以缩放，移动，不可以编辑元素，根据选择的元素在页面中进行添加操作
-   */
-  changeMode(mode: 'view' | 'edit'): void
   delElement(id: string): void
 }

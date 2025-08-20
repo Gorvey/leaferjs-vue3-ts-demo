@@ -5,8 +5,8 @@
  * @LastEditTime: 2025-08-18 21:49:59
  * @Description:
  */
-import { Resource, Rect, type IRect, DragEvent } from 'leafer-ui'
-import type { IMark, ILeaferAnnotate } from './leafer.type'
+import { Resource, Rect, type IRect,  } from 'leafer-ui'
+import type { IMark,  } from './leafer.type'
 //#region loadImage
 export interface IImageInfo {
   /** 图片的url, leafer Resource 的资源路径 */
