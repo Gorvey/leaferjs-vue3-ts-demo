@@ -50,6 +50,7 @@ class LeaferAnnotate implements ILeaferAnnotate {
         zoomSpeed: 0.02,
       },
       editor: {
+        moveable :true,
         skewable: false,
         rotateable: false,
         boxSelect: false,
@@ -271,7 +272,7 @@ class LeaferAnnotate implements ILeaferAnnotate {
             hitRadius: this.fillColor === "" ? 8 : 0,
             stroke: "#0088ff",
             strokeWidth: 1,
-            draggable: true,
+            draggable: false,
             dragBounds: "parent",
             editable: true,
             className: "mark",

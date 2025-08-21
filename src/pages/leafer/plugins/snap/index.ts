@@ -229,7 +229,7 @@ export class Snap {
 
   /**
    * 处理缩放事件
-   * 计算吸附结果并应用吸附偏移
+   * 只渲染吸附线，不修改元素位置
    * @param event 缩放事件
    */
   private handleScale(event: EditorScaleEvent): void {
@@ -239,7 +239,59 @@ export class Snap {
     if (!scaleX && !scaleY)
       return
 
-    this.executeMove(event)
+    this.executeScaleVisual(event)
+  }
+
+  /**
+   * 执行缩放可视化处理逻辑
+   * 渲染吸附线并应用缩放吸附
+   * @param event 缩放事件
+   */
+  private executeScaleVisual(event: EditorEvent): void {
+    const { target } = event
+
+    if (this.isSnapping) {
+      hideRenderElements([
+        ...this.verticalLines,
+        ...this.horizontalLines,
+        ...this.distanceLabels,
+        ...this.equalSpacingBoxes,
+      ])
+    }
+    const targetPoints = getElementBoundPoints(target, this.app.tree!)
+
+    const forSnap = calculateSnap(
+      targetPoints,
+      [
+        ...this.snapLines,
+        ...this.snapLines4SpacingBoxes,
+      ],
+      this.config.snapSize,
+    )
+
+    const forDrawLine = calculateSnap(
+      targetPoints,
+      this.snapLines,
+      this.config.snapSize,
+    )
+
+    // 应用吸附偏移（使用智能scale模式）
+    this.applySmartSnapOffset(target, {
+      x: selectBestLineCollision(forSnap.x),
+      y: selectBestLineCollision(forSnap.y),
+    })
+
+    // 渲染吸附线
+    if (this.config.showLine && (forDrawLine.x.length || forDrawLine.y.length)) {
+      this.renderSnapLines(target, forDrawLine)
+    }
+
+    // 计算并渲染等宽间距
+    if (this.config.showEqualSpacingBoxes) {
+      const snapElements = this.snapElements.filter(el => el !== this.parentContainer)
+      const equalSpacingResults = calculateEqualSpacing(target, snapElements, this.app.tree!)
+      drawEqualSpacingBoxes(equalSpacingResults, this.equalSpacingBoxes, this.app, this.config)
+    }
   }
 
   /**
@@ -426,6 +478,55 @@ export class Snap {
         editor.list.forEach((element: any) => handle(element, axis, snap))
         if (editor.multiple) {
           (target as ISimulateElement).safeChange?.(() => handle(target, axis, snap))
+        }
+      }
+    })
+  }
+
+  /**
+   * 智能应用吸附偏移
+   * 在scale操作时提供可选的吸附策略
+   * @param target 目标元素  
+   * @param snapResult X轴和Y轴的碰撞结果
+   */
+  private applySmartSnapOffset(target: IUI, snapResult: {
+    x: LineCollisionResult | null
+    y: LineCollisionResult | null
+  }): void {
+    if (this.isKeyEvent)
+      return
+
+    // 方案1：温和的位置吸附（偏移量限制）
+    function handleGentle(ui: any, axis: any, snap: LineCollisionResult) {
+      if (Math.abs(snap.offset) <= 5) { // 更小的阈值
+        ui[axis] = ui[axis] - snap.offset
+      }
+    }
+
+    // 方案2：基于边界的智能调整
+    function handleBoundary(ui: any, axis: any, snap: LineCollisionResult) {
+      const sizeAxis = axis === 'x' ? 'width' : 'height'
+      const currentPos = ui[axis]
+      const currentSize = ui[sizeAxis]
+      
+      // 检测是否是边界吸附（右边或底边）
+      const isEndBoundary = Math.abs((currentPos + currentSize) - (snap.line.value)) < Math.abs(currentPos - snap.line.value)
+      
+      if (isEndBoundary) {
+        // 调整尺寸而不是位置
+        ui[sizeAxis] = snap.line.value - currentPos
+      } else {
+        // 调整位置
+        ui[axis] = snap.line.value
+      }
+    }
+    
+    Object.entries(snapResult).forEach(([axis, snap]) => {
+      if (snap) {
+        const editor = this.app.editor
+        editor.list.forEach((element: any) => handleGentle(element, axis, snap))
+        if (editor.multiple) {
+          (target as ISimulateElement).safeChange?.(() => handleGentle(target, axis, snap))
         }
       }
     })
