@@ -260,14 +260,14 @@ export class Snap {
     }
     const targetPoints = getElementBoundPoints(target, this.app.tree!)
 
-    const forSnap = calculateSnap(
-      targetPoints,
-      [
-        ...this.snapLines,
-        ...this.snapLines4SpacingBoxes,
-      ],
-      this.config.snapSize,
-    )
+    // const forSnap = calculateSnap(
+    //   targetPoints,
+    //   [
+    //     ...this.snapLines,
+    //     ...this.snapLines4SpacingBoxes,
+    //   ],
+    //   this.config.snapSize,
+    // )
 
     const forDrawLine = calculateSnap(
       targetPoints,
@@ -275,11 +275,11 @@ export class Snap {
       this.config.snapSize,
     )
 
-    // 应用吸附偏移（使用智能scale模式）
-    this.applySmartSnapOffset(target, {
-      x: selectBestLineCollision(forSnap.x),
-      y: selectBestLineCollision(forSnap.y),
-    })
+    // // 应用吸附偏移（使用智能scale模式）
+    // this.applySmartSnapOffset(target, {
+    //   x: selectBestLineCollision(forSnap.x),
+    //   y: selectBestLineCollision(forSnap.y),
+    // })
 
     // 渲染吸附线
     if (this.config.showLine && (forDrawLine.x.length || forDrawLine.y.length)) {
@@ -391,23 +391,23 @@ export class Snap {
       ...this.equalSpacingBoxes,
     ])
 
-    const targetPoints = getElementBoundPoints(target, this.app.tree!)
+    // const targetPoints = getElementBoundPoints(target, this.app.tree!)
 
-    const forSnap = calculateSnap(
-      targetPoints,
-      [
-        ...this.snapLines,
-        ...this.snapLines4SpacingBoxes,
-      ],
-      this.config.snapSize,
-    )
+    // const forSnap = calculateSnap(
+    //   targetPoints,
+    //   [
+    //     ...this.snapLines,
+    //     ...this.snapLines4SpacingBoxes,
+    //   ],
+    //   this.config.snapSize,
+    // )
 
 
     // 应用吸附偏移
-    this.applyManualSnapOffset(target, {
-      x: selectBestLineCollision(forSnap.x),
-      y: selectBestLineCollision(forSnap.y),
-    })
+    // this.applyManualSnapOffset(target, {
+    //   x: selectBestLineCollision(forSnap.x),
+    //   y: selectBestLineCollision(forSnap.y),
+    // })
 
     // 重新计算目标点（因为位置可能已经被吸附调整）
     const updatedTargetPoints = getElementBoundPoints(target, this.app.tree!)

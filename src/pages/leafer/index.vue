@@ -72,10 +72,10 @@ onMounted(async () => {
       <div v-for="value in list" :key="value!.id">
         <span>ID: {{ value!.id }}</span>
         <input type="number" v-model.number="value!.x" />
-        <input v-model="value!.y" />
-        <input v-model="value!.width" />
-        <input v-model="value!.height" />
-        <input v-model="value!.data!.createTime" />
+        <input type="number" v-model.number="value!.y" />
+        <input type="number" v-model.number="value!.width" />
+        <input type="number" v-model.number="value!.height" />
+        <input type="text" v-model="value!.data!.createTime" />
       </div>
     </div>
   </div>

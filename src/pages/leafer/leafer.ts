@@ -1,67 +1,63 @@
 /* eslint-disable no-unused-vars */
 import { App, Image, Frame, Rect, DragEvent, PointerEvent } from "leafer-ui";
 import "./proxyData.ts";
-import type { IFrame, IApp } from "leafer-ui";
-import "@leafer-in/editor"; // 导入交互状态插件
+import type { IFrame } from "leafer-ui";
+import "@leafer-in/editor";
 import { EditorEvent } from "@leafer-in/editor";
-import "@leafer-in/viewport"; // 导入视口插件
-import "@leafer-in/view"; // 导入视口插件
-import "@leafer-in/state"; // 导入交互状态插件
-import "@leafer-in/resize"; // 导入交互状态插件
+import "@leafer-in/viewport";
+import "@leafer-in/view";
+import "@leafer-in/state";
+import "@leafer-in/resize";
 import "@leafer-in/find";
 import { Ruler } from "leafer-x-ruler";
 import { Snap } from "./plugins/snap";
-// import { Flow } from '@leafer-in/flow'  // 导入自动布局插件 //
 import { cloneDeep } from "lodash";
-import { loadImage, processMarksToRects } from "./leafer-helper.ts";
+import {
+  loadImage,
+  processMarksToRects,
+  createRect,
+  DEFAULT_LEAFER_CONFIG,
+  DEFAULT_SNAP_CONFIG,
+  DEFAULT_RULER_CONFIG,
+  calculateRectBounds,
+  createElementData,
+  isValidRectSize,
+  getCanvasElement,
+  parseDragData,
+  configureInteractionMode,
+} from "./leafer-helper.ts";
 import type {
   LeaferAnnotateConfig,
   IMark,
   ILeaferAnnotate,
-  ActiveTool,
 } from "./leafer.type.ts";
 
-class LeaferAnnotate implements ILeaferAnnotate {
+export class LeaferAnnotate implements ILeaferAnnotate {
   config: LeaferAnnotateConfig;
   leafer!: App;
   pageFrame!: IFrame;
-  activeTool: ActiveTool = "move";
-  fillColor: "transparent" | "" = "transparent";
   private mode: "view" | "edit" = "view";
   private isCreating = false;
   private startPoint: { x: number; y: number } | null = null;
   private isElementSelected = false;
   private previewRect: Rect | null = null;
   private snap!: Snap;
+
   constructor(config: LeaferAnnotateConfig) {
     this.config = cloneDeep(config);
     this.isElementSelected = false;
+    this.startPoint = null;
+    this.isCreating = false;
+    this.isElementSelected = false;
+    this.previewRect = null;
   }
   async init(): Promise<void> {
     let { view, pageUrl, marks } = this.config;
 
-    // 初始化APP，没有设置宽高，默认使用父元素的宽高
+    // 初始化画布，没有设置宽高，默认使用父元素的宽高
     this.leafer = new App({
       view: view,
-      fill: "#333",
-      tree: { type: "design" },
-      zoom: { min: 0.1, max: 8 },
-      wheel: {
-        zoomSpeed: 0.02,
-      },
-      editor: {
-        moveable :true,
-        skewable: false,
-        rotateable: false,
-        boxSelect: false,
-        multipleSelect: false,
-        stroke: "#0088ff",
-        strokeWidth: 3,
-        pointSize: 5,
-        openInner: "double",
-      },
-      smooth: true,
-      pixelSnap: true,
+      ...DEFAULT_LEAFER_CONFIG,
     });
 
     // 获取底图，这是整个画布的核心
@@ -82,27 +78,27 @@ class LeaferAnnotate implements ILeaferAnnotate {
     this.initMarks(marks);
 
     // 绑定事件
-    this.bindEvent(this.leafer);
+    this.bindEvent();
 
-    // 加载插件
-    this.snap = new Snap(this.leafer, {
-      lineColor: "#0088ff",
-      parentContainer: this.pageFrame,
-      showEqualSpacingBoxes: true,
-    });
-    const ruler = new Ruler(this.leafer, {
-      unit: "px",
-    });
+    // 添加画布拖拽
+    this.bindDragDropHandlers();
 
-    this.snap.enable(true);
-    ruler.enabled = true;
+    // 启用插件
+    this.bindPlugins();
 
     // 默认为view模式
     this.changeMode("view");
-    this.setActiveTool("rect");
   }
-  setActiveTool(tool: ActiveTool): void {
-    this.activeTool = tool;
+
+  /**
+   * 根据ID删除元素
+   * @param id 元素ID
+   */
+  delElement(id: string): void {
+    const element = this.pageFrame.find(`[data.id="${id}"]`)[0];
+    if (element) {
+      element.remove();
+    }
   }
   /**
    * 切换模式
@@ -114,58 +110,26 @@ class LeaferAnnotate implements ILeaferAnnotate {
    */
   private changeMode(mode: "view" | "edit"): void {
     this.mode = mode;
-    if (this.mode === "view") {
-      this.pageFrame.cursor = "crosshair";
+    this.pageFrame.cursor = "crosshair";
+    let interaction = this.leafer.tree?.interaction;
+    configureInteractionMode(interaction, mode);
 
+    if (this.mode === "view") {
       this.pageFrame.hitChildren = true;
-      // this.pageFrame.children?.forEach((child) => {
-      //   if (child.className === 'mark') {
-      //     child.hoverStyle = {
-      //       fill: 'transparent',
-      //     }
-      //   }
-      // })
-      let interaction = this.leafer.tree?.interaction;
-      if (interaction) {
-        // interaction.config.move!.drag = true;
-        interaction.config.move!.holdMiddleKey = true;
-        interaction.config.move!.holdSpaceKey = true;
-        interaction.config.wheel!.disabled = false;
-      }
     } else if (this.mode === "edit") {
       this.pageFrame.hitChildren = false;
-      this.pageFrame.cursor = "crosshair";
+    }
+  }
 
-      let interaction = this.leafer.tree?.interaction;
-      if (interaction) {
-        interaction.config.move!.drag = false;
-        interaction.config.move!.holdMiddleKey = false;
-        interaction.config.move!.holdSpaceKey = false;
-        interaction.config.wheel!.disabled = true;
-      }
-    }
-  }
-  /**
-   * 根据ID删除元素
-   * @param id 元素ID
-   */
-  delElement(id: string): void {
-    const element = this.pageFrame.find(`[data.id="${id}"]`)[0];
-    if (element) {
-      element.remove();
-    }
-  }
-  private bindEvent(app: IApp) {
-    // 监听拖拽开始事件
-    app.on(DragEvent.START, (e) => {
+  private bindEvent() {
+    // 监听拖拽开始事件,按住ctrl + 拖动元素时，复制一个元素
+    this.leafer.on(DragEvent.START, (e) => {
       if (e.ctrlKey && e.left) {
         const rect = e.target;
         const clonedRect = rect.clone({
           x: rect.x,
           y: rect.y,
-          data: {
-            createTime: "000",
-          },
+          data: {},
         });
 
         // 交换业务数据
@@ -180,52 +144,45 @@ class LeaferAnnotate implements ILeaferAnnotate {
     });
 
     // 监听点击事件
-    app.on(PointerEvent.TAP, (e) => {
-      this.config?.onElementSelect(e);
+    this.leafer.on(PointerEvent.TAP, (e) => {
+      if (e.target.className === "mark") {
+        this.config?.onElementSelect(e);
+      }
     });
-    app.editor.on(EditorEvent.SELECT, () => {
-      if (app.editor.target) {
+
+    // 监听选中事件
+    this.leafer.editor.on(EditorEvent.SELECT, () => {
+      if (this.leafer.editor.target) {
         this.isElementSelected = true;
       } else {
         this.isElementSelected = false;
       }
     });
 
-    // 添加画布拖拽处理
-    this.initDragDropHandlers();
-
     // 矩形绘制相关事件
     this.pageFrame.on(PointerEvent.DOWN, (e) => {
       if (this.isElementSelected) return;
-      if (this.activeTool === "rect") {
-        this.isCreating = true;
-        this.startPoint = this.pageFrame.getLocalPoint(e);
-      }
+      this.isCreating = true;
+      this.startPoint = this.pageFrame.getLocalPoint(e);
     });
 
     this.pageFrame.on(PointerEvent.MOVE, (e) => {
       if (this.isElementSelected) return;
       if (this.isCreating && this.startPoint) {
         const currentPoint = this.pageFrame.getLocalPoint(e);
+        const { x, y, width, height } = calculateRectBounds(
+          this.startPoint,
+          currentPoint
+        );
 
-        const x = Math.min(this.startPoint.x, currentPoint.x);
-        const y = Math.min(this.startPoint.y, currentPoint.y);
-        const width = Math.abs(currentPoint.x - this.startPoint.x);
-        const height = Math.abs(currentPoint.y - this.startPoint.y);
-
-        if (width > 5 && height > 5) {
+        if (isValidRectSize(width, height)) {
           if (!this.previewRect) {
-            this.previewRect = new Rect({
+            this.previewRect = createRect({
               id: "preview-rect",
               x,
               y,
               width,
               height,
-              fill: "transparent",
-              stroke: "#0088ff",
-              editable: true,
-              strokeWidth: 1,
-              isSnap: true, // 启用吸附
             });
             this.pageFrame.add(this.previewRect);
             // 触发吸附计算
@@ -248,11 +205,10 @@ class LeaferAnnotate implements ILeaferAnnotate {
       if (this.isElementSelected) return;
       if (this.isCreating && this.startPoint) {
         const currentPoint = this.pageFrame.getLocalPoint(e);
-
-        const x = Math.min(this.startPoint.x, currentPoint.x);
-        const y = Math.min(this.startPoint.y, currentPoint.y);
-        const width = Math.abs(currentPoint.x - this.startPoint.x);
-        const height = Math.abs(currentPoint.y - this.startPoint.y);
+        const { x, y, width, height } = calculateRectBounds(
+          this.startPoint,
+          currentPoint
+        );
 
         if (this.previewRect) {
           this.previewRect.remove();
@@ -262,25 +218,13 @@ class LeaferAnnotate implements ILeaferAnnotate {
         // 清除吸附线
         this.snap.destroy();
 
-        if (width > 5 && height > 5) {
-          const rect = new Rect({
+        if (isValidRectSize(width, height)) {
+          const rect = createRect({
             x,
             y,
             width,
             height,
-            fill: this.fillColor,
-            hitRadius: this.fillColor === "" ? 8 : 0,
-            stroke: "#0088ff",
-            strokeWidth: 1,
-            draggable: false,
-            dragBounds: "parent",
-            editable: true,
-            className: "mark",
-            isSnap: true,
-            data: {
-              id: `rect_${Date.now()}`,
-              createTime: new Date().toISOString(),
-            },   
+            data: createElementData("rect"),
           });
           this.pageFrame.add(rect);
           this.config?.onElementAdd(rect);
@@ -306,10 +250,8 @@ class LeaferAnnotate implements ILeaferAnnotate {
   /**
    * 初始化拖拽处理事件
    */
-  private initDragDropHandlers(): void {
-    const canvasElement = document.querySelector(
-      "#leafer-container"
-    ) as HTMLElement;
+  private bindDragDropHandlers(): void {
+    const canvasElement = getCanvasElement();
     if (!canvasElement) return;
 
     // 允许拖拽到画布上
@@ -321,54 +263,37 @@ class LeaferAnnotate implements ILeaferAnnotate {
     canvasElement.addEventListener("drop", (e) => {
       e.preventDefault();
 
-      try {
-        const dataString = e.dataTransfer?.getData("application/json");
-        if (!dataString) return;
+      const shapeData = parseDragData(e.dataTransfer);
+      if (!shapeData) return;
 
-        const shapeData = JSON.parse(dataString);
-        if (shapeData.source !== "toolbar") return;
+      // 将浏览器坐标转换为世界坐标
+      const worldPoint = this.leafer.getWorldPointByClient(e);
+      // 将世界坐标转换为frame内坐标
+      const framePoint = this.pageFrame.getInnerPoint(worldPoint);
 
-        // 将浏览器坐标转换为世界坐标
-        const worldPoint = this.leafer.getWorldPointByClient(e);
-        // 将世界坐标转换为frame内坐标
-        const framePoint = this.pageFrame.getInnerPoint(worldPoint);
-
-        // 根据类型创建图形
-        let shape;
-        const baseConfig = {
-          x: framePoint.x - shapeData.width / 2,
-          y: framePoint.y - shapeData.height / 2,
-          width: shapeData.width,
-          height: shapeData.height,
-          fill: "transparent",
-          stroke: "#0088ff",
-          strokeWidth: 2,
-          hitSoroke: "all",
-          hitRadius: 10,
-          draggable: true,
-          dragBounds: "parent" as const,
-          editable: true,
-          className: "mark",
-          lockRatio: true,
-          isSnap: true,
-          data: {
-            id: `${shapeData.type}_${Date.now()}`,
-            createTime: new Date().toISOString(),
-          },
-        };
-
-        shape = new Rect(baseConfig);
-
-        if (shape) {
-          this.pageFrame.add(shape);
-          this.config?.onElementAdd(shape);
-          this.setActiveTool("rect");
-          console.log(`创建了 ${shapeData.type} 图形`, shape);
-        }
-      } catch (error) {
-        console.error("处理拖拽数据时出错:", error);
-      }
+      // 根据类型创建图形
+      const shape = createRect({
+        x: framePoint.x - shapeData.width / 2,
+        y: framePoint.y - shapeData.height / 2,
+        width: shapeData.width,
+        height: shapeData.height,
+        lockRatio: true,
+        data: createElementData(shapeData.type),
+      });
+      this.pageFrame.add(shape);
+      this.config?.onElementAdd(shape);
     });
+  }
+
+  private bindPlugins(): void {
+    this.snap = new Snap(this.leafer, {
+      ...DEFAULT_SNAP_CONFIG,
+      parentContainer: this.pageFrame,
+    });
+    const ruler = new Ruler(this.leafer, DEFAULT_RULER_CONFIG);
+
+    this.snap.enable(true);
+    ruler.enabled = true;
   }
 }
 

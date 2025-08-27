@@ -7,6 +7,15 @@
  */
 import { type IFrame, App, type IUI } from 'leafer-ui'
 
+export interface IImageInfo {
+  /** 图片的url, leafer Resource 的资源路径 */
+  url: string;
+  /** 图片的宽度，单位px */
+  width: number;
+  /** 图片的高度，单位px */
+  height: number;
+}
+
 // 定义坐标点类型
 export interface IMarkPoint {
   x: number
@@ -43,10 +52,7 @@ export interface ILeaferAnnotate {
   config: LeaferAnnotateConfig
   leafer: App
   pageFrame: IFrame
-  activeTool: ActiveTool
-  fillColor:string
 
-  setActiveTool(tool: ActiveTool): void
   init(): Promise<void>
   delElement(id: string): void
 }

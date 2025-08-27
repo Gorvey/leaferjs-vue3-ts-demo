@@ -15,14 +15,20 @@
       </button>
     </div>
     <div class="draggable-items">
-      <div class="drag-item" draggable="true" @dragstart="onDragStart($event, 'rect')">
-        矩形
+      <div 
+        v-for="shape in shapeList" 
+        :key="shape.id"
+        class="drag-item" 
+        draggable="true" 
+        @dragstart="onDragStart($event, shape)"
+        @dragend="onDragEnd"
+      >
+        {{ shape.name }} ({{ shape.width }}x{{ shape.height }})
       </div>
-  
     </div>
-    <button @click="instance!.fillColor = 'transparent'">transparent</button>
-    <div>| </div>
-    <button @click="instance!.fillColor = ''">''</button>
+    <div class="silhouette">
+      <div id="dragSilhouette"></div>
+    </div>
   </div>
 </template>
 
@@ -31,33 +37,89 @@ import { ref, inject,  } from 'vue';
 import type { ShallowRef } from 'vue'
 import type { ILeaferAnnotate, ActiveTool } from './leafer.type'
 
+interface ShapeItem {
+  id: string;
+  name: string;
+  type: string;
+  width: number;
+  height: number;
+}
+
 const instance = inject<ShallowRef<ILeaferAnnotate | null>>('leafer-instance')
-const activeTool = ref('rect'); // 默认激活移动工具
+const activeTool = ref('rect');
+
+const shapeList = ref<ShapeItem[]>([
+  { id: 'rect-small', name: '小矩形', type: 'rect', width: 50, height: 50 },
+  { id: 'rect-medium', name: '中矩形', type: 'rect', width: 200, height: 100 },
+  { id: 'rect-large', name: '大矩形', type: 'rect', width: 300, height: 300 }
+]);
 
 const setActiveTool = (tool: ActiveTool) => {
   if(!instance) return
   activeTool.value = tool;
-  instance?.value?.setActiveTool(tool)
 };
 
 /**
  * 处理拖拽开始事件
  * @param event 拖拽事件
- * @param shapeType 图形类型：'rect' 
+ * @param shape 图形对象
  */
-const onDragStart = (event: DragEvent, shapeType: string) => {
-  if (event.dataTransfer) {
+const onDragStart = (event: DragEvent, shape: ShapeItem) => {
+  if (event.dataTransfer && instance?.value) {
     const shapeData = {
-      type: shapeType,
-      width: 60,
-      height: 60,
+      type: shape.type,
+      width: shape.width,
+      height: shape.height,
       timestamp: Date.now(),
       source: 'toolbar'
     };
 
     const dataString = JSON.stringify(shapeData);
     event.dataTransfer.setData('application/json', dataString);
-    console.log(`拖拽 ${shapeType} 数据:`, dataString);
+    
+    // 隐藏默认拖拽图像
+    const empty = new Image();
+    empty.src = 'data:image/png;base64,iVBORw0KGgo=';
+    event.dataTransfer.setDragImage(empty, 0, 0);
+
+    const scale = instance.value.leafer?.zoomLayer.scaleX || 1;
+    const w = shape.width * scale;
+    const h = shape.height * scale;
+
+    const sil = document.getElementById('dragSilhouette')!;
+    Object.assign(sil.style, {
+      display: 'block',
+      width: `${w}px`,
+      height: `${h}px`,
+      transform: 'translate(-50%, -50%)'
+    });
+
+    // 跟随鼠标
+    const onDrag = (ev: DragEvent) => {
+      sil.style.left = `${ev.clientX}px`;
+      sil.style.top  = `${ev.clientY}px`;
+    };
+    document.addEventListener('dragover', onDrag);
+    (event as any).cleanup = () => document.removeEventListener('dragover', onDrag);
+
+    event.dataTransfer.dropEffect = 'move';
+  }
+};
+
+/**
+ * 处理拖拽结束事件
+ * @param event 拖拽事件
+ */
+const onDragEnd = (event: DragEvent) => {
+  // 隐藏拖拽剪影
+  const sil = document.getElementById('dragSilhouette')!;
+  sil.style.display = 'none';
+  sil.style.left = '-999px';
+  sil.style.top = '-999px';
+  
+  // 清理事件监听器
+  if ((event as any).cleanup) {
+    (event as any).cleanup();
   }
 };
 
@@ -102,10 +164,26 @@ const onDragStart = (event: DragEvent, shapeType: string) => {
   border: 1px solid #ccc;
   background-color: #fff;
   cursor: grab;
-  user-select: none; /* 防止拖拽时选中文本 */
+  user-select: none;
 }
 
 .drag-item:active {
   cursor: grabbing;
+}
+
+.silhouette {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+#dragSilhouette {
+  position: absolute;
+  display: none;
+  background-color: rgba(0, 123, 255, 0.3);
+  border: 2px dashed #007bff;
+  pointer-events: none;
 }
 </style>
