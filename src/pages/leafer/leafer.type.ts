@@ -36,8 +36,8 @@ export interface LeaferAnnotateConfig {
   view: string // 挂载的视图
   pageUrl: string // 背景图片的URL
   marks: IMark[] // 标注数据数组
-  onElementAdd(element: IUI): void
-  onElementSelect(element: IUI): void
+  onElementAdd?: (element: IUI) => void
+  onElementSelect?: (element: IUI) => void
 }
 
 export type ActiveTool = 'move' | 'rect' | 'drag' | ''
@@ -55,4 +55,5 @@ export interface ILeaferAnnotate {
 
   init(): Promise<void>
   delElement(id: string): void
+  destroy(): Promise<void>
 }

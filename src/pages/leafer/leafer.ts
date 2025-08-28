@@ -43,15 +43,74 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   private isElementSelected = false;
   private previewRect: Rect | null = null;
   private snap!: Snap;
+  private adsorptionBinding!: AdsorptionBinding;
+  private ruler: Ruler | null = null;
+  private dragOverHandler: ((e: Event) => void) | null = null;
+  private dropHandler: ((e: Event) => void) | null = null;
+  private canvasElement: HTMLElement | null = null;
 
   /**
    * 四舍五入坐标点到整数
    */
-  private roundPoint(point: { x: number; y: number }): { x: number; y: number } {
+  private roundPoint(point: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
     return {
       x: Math.round(point.x),
-      y: Math.round(point.y)
+      y: Math.round(point.y),
     };
+  }
+
+  /**
+   * 确保元素位置在frame边界内
+   */
+  private constrainToFrameBounds(
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): { x: number; y: number } {
+    const frameWidth = this.pageFrame.width ?? 0;
+    const frameHeight = this.pageFrame.height ?? 0;
+    
+    let constrainedX = x;
+    let constrainedY = y;
+    
+    // 如果frame尺寸无效，返回原坐标
+    if (frameWidth <= 0 || frameHeight <= 0) {
+      return { x: constrainedX, y: constrainedY };
+    }
+    
+    // 如果元素宽度大于frame宽度，将其居左放置
+    if (width >= frameWidth) {
+      constrainedX = 0;
+    } else {
+      // 确保左边界不超出
+      if (constrainedX < 0) {
+        constrainedX = 0;
+      }
+      // 确保右边界不超出
+      if (constrainedX + width > frameWidth) {
+        constrainedX = frameWidth - width;
+      }
+    }
+    
+    // 如果元素高度大于frame高度，将其居顶放置
+    if (height >= frameHeight) {
+      constrainedY = 0;
+    } else {
+      // 确保上边界不超出
+      if (constrainedY < 0) {
+        constrainedY = 0;
+      }
+      // 确保下边界不超出
+      if (constrainedY + height > frameHeight) {
+        constrainedY = frameHeight - height;
+      }
+    }
+    
+    return { x: constrainedX, y: constrainedY };
   }
 
   constructor(config: LeaferAnnotateConfig) {
@@ -61,6 +120,65 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     this.isCreating = false;
     this.isElementSelected = false;
     this.previewRect = null;
+    this.dragOverHandler = null;
+    this.dropHandler = null;
+    this.canvasElement = null;
+  }
+  public async destroy(): Promise<void> {
+    // 清理预览矩形
+    if (this.previewRect) {
+      this.previewRect.remove();
+      this.previewRect = null;
+    }
+
+    // 移除DOM事件监听器
+    if (this.canvasElement && this.dragOverHandler && this.dropHandler) {
+      this.canvasElement.removeEventListener("dragover", this.dragOverHandler);
+      this.canvasElement.removeEventListener("drop", this.dropHandler);
+    }
+
+    // 清理事件处理器引用
+    this.dragOverHandler = null;
+    this.dropHandler = null;
+    this.canvasElement = null;
+
+    // 注销插件
+    if (this.snap) {
+      this.snap.destroy();
+    }
+    if (this.adsorptionBinding) {
+      this.adsorptionBinding.uninstall();
+    }
+    if (this.ruler) {
+      this.ruler.enabled = false;
+      this.ruler = null;
+    }
+
+    // 清理所有事件监听器
+    if (this.leafer) {
+      this.leafer.off();
+      if (this.leafer.editor) {
+        this.leafer.editor.off();
+      }
+    }
+
+    // 清理页面框架
+    if (this.pageFrame) {
+      this.pageFrame.off();
+      this.pageFrame.removeAll();
+    }
+
+    // 销毁画布
+    if (this.leafer) {
+      await this.leafer.destroy(true);
+    }
+
+    // 清理所有引用
+    this.startPoint = null;
+    this.isCreating = false;
+    this.isElementSelected = false;
+    
+    return;
   }
   async init(): Promise<void> {
     let { view, pageUrl, marks } = this.config;
@@ -70,8 +188,6 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       view: view,
       ...DEFAULT_LEAFER_CONFIG,
     });
-    let instance = new AdsorptionBinding();
-    instance.install(this.leafer);
     // 获取底图，这是整个画布的核心
     let { url, width, height } = await loadImage(pageUrl, "bg.png");
 
@@ -136,7 +252,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   private bindEvent() {
     // 监听拖拽开始事件,按住ctrl + 拖动元素时，复制一个元素
     this.leafer.on(DragEvent.START, (e) => {
-      if(e.target.className !== "mark") return;
+      if (e.target.className !== "mark") return;
       if (e.ctrlKey && e.left) {
         const rect = e.target;
         const clonedRect = rect.clone({
@@ -152,14 +268,18 @@ export class LeaferAnnotate implements ILeaferAnnotate {
         clonedRect.data = originalData;
 
         this.pageFrame.add(clonedRect);
-        this.config?.onElementAdd(clonedRect);
+        if (this.config?.onElementAdd) {
+          this.config.onElementAdd(clonedRect);
+        }
       }
     });
 
     // 监听点击事件
     this.leafer.on(PointerEvent.TAP, (e) => {
       if (e.target.className === "mark") {
-        this.config?.onElementSelect(e);
+        if (this.config?.onElementSelect) {
+          this.config.onElementSelect(e);
+        }
       }
     });
 
@@ -239,8 +359,10 @@ export class LeaferAnnotate implements ILeaferAnnotate {
             height,
             data: createElementData("rect"),
           });
-          this.pageFrame.add(rect);
-          this.config?.onElementAdd(rect);
+          this.pageFrame.add(rect); 
+          if (this.config?.onElementAdd) {
+            this.config.onElementAdd(rect);
+          }
         }
 
         this.isCreating = false;
@@ -264,49 +386,72 @@ export class LeaferAnnotate implements ILeaferAnnotate {
    * 初始化拖拽处理事件
    */
   private bindDragDropHandlers(): void {
-    const canvasElement = getCanvasElement();
-    if (!canvasElement) return;
+    this.canvasElement = getCanvasElement();
+    if (!this.canvasElement) return;
 
-    // 允许拖拽到画布上
-    canvasElement.addEventListener("dragover", (e) => {
+    // 创建事件处理器并保存引用
+    this.dragOverHandler = (e: Event) => {
       e.preventDefault();
-    });
+    };
 
-    // 处理拖拽释放
-    canvasElement.addEventListener("drop", (e) => {
+    this.dropHandler = (e: Event) => {
       e.preventDefault();
-
-      const shapeData = parseDragData(e.dataTransfer);
+      
+      const dragEvent = e as globalThis.DragEvent;
+      const shapeData = parseDragData(dragEvent.dataTransfer);
       if (!shapeData) return;
 
       // 将浏览器坐标转换为世界坐标
-      const worldPoint = this.leafer.getWorldPointByClient(e);
+      const worldPoint = this.leafer.getWorldPointByClient(dragEvent);
       // 将世界坐标转换为frame内坐标
-      const framePoint = this.roundPoint(this.pageFrame.getInnerPoint(worldPoint));
+      const framePoint = this.roundPoint(
+        this.pageFrame.getInnerPoint(worldPoint)
+      );
+      
+      // 计算初始位置（以framePoint为中心）
+      const initialX = framePoint.x - shapeData.width / 2;
+      const initialY = framePoint.y - shapeData.height / 2;
+      
+      // 使用边界检查确保元素在frame内
+      const { x: constrainedX, y: constrainedY } = this.constrainToFrameBounds(
+        initialX,
+        initialY,
+        shapeData.width,
+        shapeData.height
+      );
 
       // 根据类型创建图形
       const shape = createRect({
-        x: framePoint.x - shapeData.width / 2,
-        y: framePoint.y - shapeData.height / 2,
+        x: constrainedX,
+        y: constrainedY,
         width: shapeData.width,
         height: shapeData.height,
         lockRatio: true,
         data: createElementData(shapeData.type),
       });
       this.pageFrame.add(shape);
-      this.config?.onElementAdd(shape);
-    });
+      if (this.config?.onElementAdd) {
+        this.config.onElementAdd(shape);
+      }
+    };
+
+    // 添加事件监听器
+    this.canvasElement.addEventListener("dragover", this.dragOverHandler);
+    this.canvasElement.addEventListener("drop", this.dropHandler);
   }
 
   private bindPlugins(): void {
+    this.adsorptionBinding = new AdsorptionBinding();
+    this.adsorptionBinding.install(this.leafer);
+
     this.snap = new Snap(this.leafer, {
       ...DEFAULT_SNAP_CONFIG,
       parentContainer: this.pageFrame,
     });
-    const ruler = new Ruler(this.leafer, DEFAULT_RULER_CONFIG);
+     this.ruler = new Ruler(this.leafer, DEFAULT_RULER_CONFIG);
 
     this.snap.enable(true);
-    ruler.enabled = true;
+    this.ruler.enabled = true;
   }
 }
 

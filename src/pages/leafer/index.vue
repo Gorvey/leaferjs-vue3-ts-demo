@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, shallowRef, ref, reactive, computed, provide } from 'vue'
+import { nextTick, onMounted, onUnmounted, shallowRef, ref, reactive, computed, provide } from 'vue'
 import Toolbar from './toolbar.vue'
 import { createLeaferAnnotate } from './leafer'
 import type { ILeaferAnnotate } from './leafer.type'
@@ -58,6 +58,53 @@ onMounted(async () => {
 //   // 3. 删除元素后，调用触发器
 //   forceUpdateList()
 // }
+
+const onDestroy = async () => {
+  if (instance.value) {
+    await instance.value.destroy()
+    await nextTick()
+    let children = document.querySelector('#leafer-container')?.children
+    if (children) {
+      for (let i = 0; i < children.length; i++) {
+        children[i].remove()
+      }
+    }
+    await nextTick()
+
+    instance.value = null
+   
+    
+    // 重置触发器
+    forceUpdateList()
+  }
+}
+
+const onSet = async () => {
+  await onDestroy()
+  // 等待一小段时间确保销毁完成
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  instance.value = await createLeaferAnnotate({
+    view: 'leafer-container',
+    pageUrl: pageinfo.url,
+    marks: marks,
+    onElementSelect: (element: IUI) => {
+      console.log('onElementAdd', element)
+    },
+    onElementAdd: (element: IUI) => {
+      console.log('onElementAdd', element)
+      // 元素添加后也触发更新
+      forceUpdateList()
+    },
+  })
+  // 重新创建后触发更新
+  forceUpdateList()
+}
+
+// 组件卸载时清理
+onUnmounted( () => {
+   onDestroy()
+})
 </script>
 
 <template>
@@ -65,9 +112,11 @@ onMounted(async () => {
     <div class="main-content">
       <div class="leafer-container" id="leafer-container"></div>
       <Toolbar />
+      
     </div>
     <div class="table">
-      <div class="controls"></div>
+      <div @click="onDestroy">销毁</div>
+      <div @click="onSet">设置</div>
 
       <div v-for="value in list" :key="value!.id">
         <span>ID: {{ value!.id }}</span>
