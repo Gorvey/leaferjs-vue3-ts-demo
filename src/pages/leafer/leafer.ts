@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { App, Image, Frame, Rect, DragEvent, PointerEvent } from "leafer-ui";
+import { AdsorptionBinding } from "./plugins/adsorption/index.ts";
 import "./proxyData.ts";
 import type { IFrame } from "leafer-ui";
 import "@leafer-in/editor";
@@ -43,6 +44,16 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   private previewRect: Rect | null = null;
   private snap!: Snap;
 
+  /**
+   * 四舍五入坐标点到整数
+   */
+  private roundPoint(point: { x: number; y: number }): { x: number; y: number } {
+    return {
+      x: Math.round(point.x),
+      y: Math.round(point.y)
+    };
+  }
+
   constructor(config: LeaferAnnotateConfig) {
     this.config = cloneDeep(config);
     this.isElementSelected = false;
@@ -59,7 +70,8 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       view: view,
       ...DEFAULT_LEAFER_CONFIG,
     });
-
+    let instance = new AdsorptionBinding();
+    instance.install(this.leafer);
     // 获取底图，这是整个画布的核心
     let { url, width, height } = await loadImage(pageUrl, "bg.png");
 
@@ -124,6 +136,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   private bindEvent() {
     // 监听拖拽开始事件,按住ctrl + 拖动元素时，复制一个元素
     this.leafer.on(DragEvent.START, (e) => {
+      if(e.target.className !== "mark") return;
       if (e.ctrlKey && e.left) {
         const rect = e.target;
         const clonedRect = rect.clone({
@@ -163,13 +176,13 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     this.pageFrame.on(PointerEvent.DOWN, (e) => {
       if (this.isElementSelected) return;
       this.isCreating = true;
-      this.startPoint = this.pageFrame.getLocalPoint(e);
+      this.startPoint = this.roundPoint(this.pageFrame.getLocalPoint(e));
     });
 
     this.pageFrame.on(PointerEvent.MOVE, (e) => {
       if (this.isElementSelected) return;
       if (this.isCreating && this.startPoint) {
-        const currentPoint = this.pageFrame.getLocalPoint(e);
+        const currentPoint = this.roundPoint(this.pageFrame.getLocalPoint(e));
         const { x, y, width, height } = calculateRectBounds(
           this.startPoint,
           currentPoint
@@ -204,7 +217,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     this.pageFrame.on(PointerEvent.UP, (e) => {
       if (this.isElementSelected) return;
       if (this.isCreating && this.startPoint) {
-        const currentPoint = this.pageFrame.getLocalPoint(e);
+        const currentPoint = this.roundPoint(this.pageFrame.getLocalPoint(e));
         const { x, y, width, height } = calculateRectBounds(
           this.startPoint,
           currentPoint
@@ -269,7 +282,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       // 将浏览器坐标转换为世界坐标
       const worldPoint = this.leafer.getWorldPointByClient(e);
       // 将世界坐标转换为frame内坐标
-      const framePoint = this.pageFrame.getInnerPoint(worldPoint);
+      const framePoint = this.roundPoint(this.pageFrame.getInnerPoint(worldPoint));
 
       // 根据类型创建图形
       const shape = createRect({
