@@ -50,7 +50,7 @@ export interface IPoint {
 // 定义 LeaferAnnotate 类的接口，使其结构更清晰
 export interface ILeaferAnnotate {
   config: LeaferAnnotateConfig
-  leafer: App
+  app: App
   pageFrame: IFrame
 
   init(): Promise<void>

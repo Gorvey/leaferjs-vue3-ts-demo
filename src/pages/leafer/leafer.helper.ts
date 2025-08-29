@@ -5,11 +5,14 @@
  * @LastEditTime: 2025-08-18 21:49:59
  * @Description:
  */
-import { Resource, Rect,  type IRectInputData,type IInteraction } from "leafer-ui";
-import type { IMark, IImageInfo } from "./leafer.type";
+import {
+  Resource,
+  Rect,
+  type IRectInputData,
+  type IInteraction,
+} from "leafer-ui";
+import type { IMark, IImageInfo, IPoint } from "./leafer.type";
 import { toRaw } from "vue";
-
-
 
 //#region 默认配置
 export const DEFAULT_LEAFER_CONFIG = {
@@ -51,12 +54,44 @@ export const DEFAULT_RECT_CONFIG = {
   editable: true,
   draggable: true,
   dragBounds: "parent" as const,
-}
+};
 export const CANVAS_SELECTOR = "#leafer-container";
 export const MIN_RECT_SIZE = 5;
 //#endregion
 
 //#region 工具函数
+
+/**
+ * 四舍五入坐标点到整数
+ * @param point 坐标点
+ * 
+ * @example
+ * const point = { x: 1.2, y: 2.5 };
+ * const roundedPoint = roundPoint(point);
+ * console.log(roundedPoint); // { x: 1, y: 3 }
+ * @returns 四舍五入后的坐标点
+ */
+export function roundPoint(point: IPoint): IPoint {
+  return {
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+  };
+}
+
+/**
+ * 设置一个对象的属性值
+ * @param obj 对象实例
+ * @param key 属性
+ * @param val 值
+ */
+export function assign<T extends object, K extends keyof T>(
+  obj: T,
+  key: K,
+  val: T[K]
+) {
+  obj[key] = val; // okay
+}
+
 /**
  * 计算矩形边界
  */
@@ -98,7 +133,7 @@ export function isValidRectSize(
  */
 export function getCanvasElement(
   selector: string = CANVAS_SELECTOR
-): HTMLElement | null {
+): HTMLElement {
   return document.querySelector(selector) as HTMLElement;
 }
 
@@ -126,57 +161,61 @@ export function parseDragData(dataTransfer: DataTransfer | null) {
  * @param scale 缩放比率
  * @returns 返回配置好的Canvas元素
  */
-export function createRectDragPreview(width: number, height: number, scale: number = 1): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
-  
+export function createRectDragPreview(
+  width: number,
+  height: number,
+  scale: number = 1
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
   const scaledWidth = width * scale;
   const scaledHeight = height * scale;
   // 确保边框在任何缩放比例下都可见，最小2像素
   const strokeWidth = Math.max(2, DEFAULT_RECT_CONFIG.strokeWidth);
-  
+
   // 获取设备像素比，确保高DPI设备下的清晰度
   const devicePixelRatio = window.devicePixelRatio || 1;
-  
+
   // 设置canvas实际尺寸
   canvas.width = scaledWidth * devicePixelRatio;
   canvas.height = scaledHeight * devicePixelRatio;
-  
+
   // 设置canvas显示尺寸
   canvas.style.width = `${scaledWidth}px`;
   canvas.style.height = `${scaledHeight}px`;
-  canvas.style.position = 'fixed';
-  canvas.style.top = '-9999px';
-  canvas.style.left = '-9999px';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.zIndex = '1000';
-  canvas.style.opacity = '1';
-  
+  canvas.style.position = "fixed";
+  canvas.style.top = "-9999px";
+  canvas.style.left = "-9999px";
+  canvas.style.pointerEvents = "none";
+  canvas.style.zIndex = "1000";
+  canvas.style.opacity = "1";
+
   // 缩放上下文以匹配设备像素比
   ctx.scale(devicePixelRatio, devicePixelRatio);
-  
+
   // 设置绘制样式
   ctx.strokeStyle = DEFAULT_RECT_CONFIG.stroke;
   ctx.lineWidth = strokeWidth;
-  ctx.fillStyle = DEFAULT_RECT_CONFIG.fill || 'transparent';
-  
+  ctx.fillStyle = DEFAULT_RECT_CONFIG.fill || "transparent";
+
   // 计算绘制区域，确保边框完全可见
   const halfStroke = strokeWidth / 2;
   const rectX = halfStroke;
   const rectY = halfStroke;
   const rectWidth = scaledWidth - strokeWidth;
   const rectHeight = scaledHeight - strokeWidth;
-  
+
   // 填充矩形
-  if (DEFAULT_RECT_CONFIG.fill && DEFAULT_RECT_CONFIG.fill !== 'transparent') {
+  if (DEFAULT_RECT_CONFIG.fill && DEFAULT_RECT_CONFIG.fill !== "transparent") {
     ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
   }
-  
+
   // 绘制边框
   ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-  
+
   document.body.appendChild(canvas);
-  
+
   return canvas;
 }
 
@@ -201,7 +240,6 @@ export function configureInteractionMode(
   }
 }
 //#endregion
-
 
 export function loadImage(src: string, name: string): Promise<IImageInfo> {
   return new Promise((resolve, reject) => {

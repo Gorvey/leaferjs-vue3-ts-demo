@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, shallowRef, ref, reactive, computed, provide } from 'vue'
+import { nextTick, onMounted, onUnmounted, shallowRef, ref, reactive, provide } from 'vue'
 import Toolbar from './toolbar.vue'
-import { createLeaferAnnotate } from './leafer'
+import { createLeaferAnnotate } from '.'
 import type { ILeaferAnnotate } from './leafer.type'
 import { type IUI } from 'leafer-ui'
 import type { IMark } from './leafer.type'
 import pageinfo from '../../api/pageinfo.json'
 import markList from '../../api/marklist.json'
-import markList2 from '../../api/marklist2.json'
 
 let instance = shallowRef<ILeaferAnnotate | null>(null)
 let manager = shallowRef<{getInstance: () => ILeaferAnnotate | null, destroy: () => Promise<void>}>()
@@ -21,18 +20,18 @@ const forceUpdateList = () => {
   listUpdateTrigger.value++
 }
 
-const list = computed(() => {
-  listUpdateTrigger.value
+// const list = computed(() => {
+//   listUpdateTrigger.value
   
-  if (!instance.value?.pageFrame) return []
+//   if (!instance.value?.pageFrame) return []
   
-  try {
-    return instance.value.pageFrame.find('.mark').map((v) => v.proxyData)
-  } catch (error) {
-    console.error('获取标记列表时出错:', error)
-    return []
-  }
-})
+//   try {
+//     return instance.value.pageFrame.find('.mark').map((v) => v.proxyData)
+//   } catch (error) {
+//     console.error('获取标记列表时出错:', error)
+//     return []
+//   }
+// })
 
 onMounted(async () => {
   try {
@@ -89,23 +88,7 @@ const onDestroy = async () => {
   }
 }
 
-const onSwitchData = async () => {
-  try {
-    if (instance.value) {
-      // 使用新的updateData函数切换数据
-      await instance.value.updateData(pageinfo.url, markList2 as IMark[])
-      
-      // 更新本地marks数组
-      marks.length = 0
-      marks.push(...(markList2 as IMark[]))
-      
-      forceUpdateList()
-      console.log('数据切换成功')
-    }
-  } catch (error) {
-    console.error('切换数据时出错:', error)
-  }
-}
+
 
 const onSet = async () => {
   try {
@@ -150,18 +133,8 @@ onUnmounted(async () => {
     <div class="table">
       <div @click="onDestroy">销毁</div>
       <div @click="onSet">设置</div>
-      <div @click="onSwitchData">切换数据</div>
     </div>
-      <table>
-        <tr v-for="value in list" :key="value!.id">
-      <span>ID: {{ value!.id }}</span>
-      <input type="number" v-model.number="value!.x" />
-      <input type="number" v-model.number="value!.y" />
-      <input type="number" v-model.number="value!.width" />
-      <input type="number" v-model.number="value!.height" />
-      <input type="text" v-model="value!.data!.createTime" />
-      </tr>
-    </table>
+
   </div>
 </template>
 
