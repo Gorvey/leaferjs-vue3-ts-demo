@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars */
-import { App, Image, Frame, Rect, DragEvent, PointerEvent } from "leafer-ui";
+import { App, Image, Frame, Rect, DragEvent, PointerEvent,Resource } from "leafer-ui";
 import { AdsorptionBinding } from "./plugins/adsorption/index.ts";
 import "./proxyData.ts";
 import type { IFrame } from "leafer-ui";
@@ -49,6 +48,16 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   private dropHandler: ((e: Event) => void) | null = null;
   private canvasElement: HTMLElement | null = null;
 
+  // 事件处理器引用存储
+  private eventHandlers = {
+    dragStart: null as ((e: any) => void) | null,
+    pointerTap: null as ((e: any) => void) | null,
+    editorSelect: null as (() => void) | null,
+    pageFrameDown: null as ((e: any) => void) | null,
+    pageFrameMove: null as ((e: any) => void) | null,
+    pageFrameUp: null as ((e: any) => void) | null,
+  };
+
   /**
    * 四舍五入坐标点到整数
    */
@@ -73,15 +82,15 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   ): { x: number; y: number } {
     const frameWidth = this.pageFrame.width ?? 0;
     const frameHeight = this.pageFrame.height ?? 0;
-    
+
     let constrainedX = x;
     let constrainedY = y;
-    
+
     // 如果frame尺寸无效，返回原坐标
     if (frameWidth <= 0 || frameHeight <= 0) {
       return { x: constrainedX, y: constrainedY };
     }
-    
+
     // 如果元素宽度大于frame宽度，将其居左放置
     if (width >= frameWidth) {
       constrainedX = 0;
@@ -95,7 +104,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
         constrainedX = frameWidth - width;
       }
     }
-    
+
     // 如果元素高度大于frame高度，将其居顶放置
     if (height >= frameHeight) {
       constrainedY = 0;
@@ -109,7 +118,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
         constrainedY = frameHeight - height;
       }
     }
-    
+
     return { x: constrainedX, y: constrainedY };
   }
 
@@ -118,18 +127,52 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     this.isElementSelected = false;
     this.startPoint = null;
     this.isCreating = false;
-    this.isElementSelected = false;
     this.previewRect = null;
     this.dragOverHandler = null;
     this.dropHandler = null;
     this.canvasElement = null;
+    
+    // 初始化事件处理器引用
+    Object.keys(this.eventHandlers).forEach(key => {
+      (this.eventHandlers as any)[key] = null;
+    });
   }
   public async destroy(): Promise<void> {
+    // 清理资源
+    Resource.destroy();
     // 清理预览矩形
     if (this.previewRect) {
       this.previewRect.remove();
       this.previewRect = null;
     }
+
+    // 精确移除所有事件监听器
+    if (this.leafer && this.eventHandlers.dragStart) {
+      this.leafer.off(DragEvent.START, this.eventHandlers.dragStart);
+    }
+    if (this.leafer && this.eventHandlers.pointerTap) {
+      this.leafer.off(PointerEvent.TAP, this.eventHandlers.pointerTap);
+    }
+    if (this.leafer?.editor && this.eventHandlers.editorSelect) {
+      this.leafer.editor.off(EditorEvent.SELECT, this.eventHandlers.editorSelect);
+    }
+    if (this.pageFrame && this.eventHandlers.pageFrameDown) {
+      this.pageFrame.off(PointerEvent.DOWN, this.eventHandlers.pageFrameDown);
+    }
+    if (this.pageFrame && this.eventHandlers.pageFrameMove) {
+      this.pageFrame.off(PointerEvent.MOVE, this.eventHandlers.pageFrameMove);
+    }
+    if (this.pageFrame && this.eventHandlers.pageFrameUp) {
+      this.pageFrame.off(PointerEvent.UP, this.eventHandlers.pageFrameUp);
+    }
+
+    // 清理事件处理器引用
+    this.eventHandlers.dragStart = null;
+    this.eventHandlers.pointerTap = null;
+    this.eventHandlers.editorSelect = null;
+    this.eventHandlers.pageFrameDown = null;
+    this.eventHandlers.pageFrameMove = null;
+    this.eventHandlers.pageFrameUp = null;
 
     // 移除DOM事件监听器
     if (this.canvasElement && this.dragOverHandler && this.dropHandler) {
@@ -137,7 +180,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       this.canvasElement.removeEventListener("drop", this.dropHandler);
     }
 
-    // 清理事件处理器引用
+    // 清理DOM事件处理器引用
     this.dragOverHandler = null;
     this.dropHandler = null;
     this.canvasElement = null;
@@ -145,39 +188,34 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     // 注销插件
     if (this.snap) {
       this.snap.destroy();
+      this.snap = null as any;
     }
     if (this.adsorptionBinding) {
       this.adsorptionBinding.uninstall();
+      this.adsorptionBinding = null as any;
     }
     if (this.ruler) {
       this.ruler.enabled = false;
       this.ruler = null;
     }
 
-    // 清理所有事件监听器
-    if (this.leafer) {
-      this.leafer.off();
-      if (this.leafer.editor) {
-        this.leafer.editor.off();
-      }
-    }
-
-    // 清理页面框架
+    // 清理页面框架（在销毁leafer之前）
     if (this.pageFrame) {
-      this.pageFrame.off();
       this.pageFrame.removeAll();
+      this.pageFrame = null as any;
     }
 
-    // 销毁画布
+    // 销毁画布（最后执行）
     if (this.leafer) {
       await this.leafer.destroy(true);
+      this.leafer = null as any;
     }
 
     // 清理所有引用
     this.startPoint = null;
     this.isCreating = false;
     this.isElementSelected = false;
-    
+
     return;
   }
   async init(): Promise<void> {
@@ -188,22 +226,9 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       view: view,
       ...DEFAULT_LEAFER_CONFIG,
     });
-    // 获取底图，这是整个画布的核心
-    let { url, width, height } = await loadImage(pageUrl, "bg.png");
 
-    this.pageFrame = new Frame({
-      width: width,
-      height: height,
-    });
-
-    this.leafer.tree?.add(this.pageFrame);
-    this.pageFrame.add(new Image({ url: url, width: width, height: height }));
-
-    // 让底图在整个画布中 上下左右，
-    this.leafer.zoom("fit", 0);
-
-    // 初始化标注
-    this.initMarks(marks);
+    // 设置图片和标记
+    await this.setupImageAndMarks(pageUrl, marks);
 
     // 绑定事件
     this.bindEvent();
@@ -219,6 +244,26 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   }
 
   /**
+   * 设置图片和标记
+   */
+  private async setupImageAndMarks(pageUrl: string, marks: IMark[]): Promise<void> {
+    // 获取底图，这是整个画布的核心
+    let { url, width, height } = await loadImage(pageUrl, "bg.png");
+
+    this.pageFrame = new Frame({
+      width: width,
+      height: height,
+    });
+
+    this.leafer.tree?.add(this.pageFrame);
+    this.leafer.zoom("fit-width", 12);
+    this.pageFrame.add(new Image({ url: url, width: width, height: height }));
+
+    // 初始化标注
+    this.initMarks(marks);
+  }
+
+  /**
    * 根据ID删除元素
    * @param id 元素ID
    */
@@ -227,6 +272,32 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     if (element) {
       element.remove();
     }
+  }
+
+  /**
+   * 更新数据，切换图片和标记
+   * @param pageUrl 新的页面图片URL
+   * @param marks 新的标记数据
+   */
+  async updateData(pageUrl: string, marks: IMark[]): Promise<void> {
+    if (!this.leafer) {
+      throw new Error('Leafer实例未初始化');
+    }
+
+    // 清除当前的pageFrame
+    if (this.pageFrame) {
+      this.pageFrame.removeAll();
+      this.pageFrame.remove();
+    }
+
+    // 重新设置图片和标记
+    await this.setupImageAndMarks(pageUrl, marks);
+    
+
+    
+    // 更新配置
+    this.config.pageUrl = pageUrl;
+    this.config.marks = marks;
   }
   /**
    * 切换模式
@@ -250,8 +321,8 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   }
 
   private bindEvent() {
-    // 监听拖拽开始事件,按住ctrl + 拖动元素时，复制一个元素
-    this.leafer.on(DragEvent.START, (e) => {
+    // 创建并存储事件处理器引用
+    this.eventHandlers.dragStart = (e) => {
       if (e.target.className !== "mark") return;
       if (e.ctrlKey && e.left) {
         const rect = e.target;
@@ -272,34 +343,31 @@ export class LeaferAnnotate implements ILeaferAnnotate {
           this.config.onElementAdd(clonedRect);
         }
       }
-    });
+    };
 
-    // 监听点击事件
-    this.leafer.on(PointerEvent.TAP, (e) => {
+    this.eventHandlers.pointerTap = (e) => {
       if (e.target.className === "mark") {
         if (this.config?.onElementSelect) {
           this.config.onElementSelect(e);
         }
       }
-    });
+    };
 
-    // 监听选中事件
-    this.leafer.editor.on(EditorEvent.SELECT, () => {
+    this.eventHandlers.editorSelect = () => {
       if (this.leafer.editor.target) {
         this.isElementSelected = true;
       } else {
         this.isElementSelected = false;
       }
-    });
+    };
 
-    // 矩形绘制相关事件
-    this.pageFrame.on(PointerEvent.DOWN, (e) => {
+    this.eventHandlers.pageFrameDown = (e) => {
       if (this.isElementSelected) return;
       this.isCreating = true;
       this.startPoint = this.roundPoint(this.pageFrame.getLocalPoint(e));
-    });
+    };
 
-    this.pageFrame.on(PointerEvent.MOVE, (e) => {
+    this.eventHandlers.pageFrameMove = (e) => {
       if (this.isElementSelected) return;
       if (this.isCreating && this.startPoint) {
         const currentPoint = this.roundPoint(this.pageFrame.getLocalPoint(e));
@@ -332,9 +400,9 @@ export class LeaferAnnotate implements ILeaferAnnotate {
           this.snap.destroy();
         }
       }
-    });
+    };
 
-    this.pageFrame.on(PointerEvent.UP, (e) => {
+    this.eventHandlers.pageFrameUp = (e) => {
       if (this.isElementSelected) return;
       if (this.isCreating && this.startPoint) {
         const currentPoint = this.roundPoint(this.pageFrame.getLocalPoint(e));
@@ -359,7 +427,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
             height,
             data: createElementData("rect"),
           });
-          this.pageFrame.add(rect); 
+          this.pageFrame.add(rect);
           if (this.config?.onElementAdd) {
             this.config.onElementAdd(rect);
           }
@@ -368,7 +436,15 @@ export class LeaferAnnotate implements ILeaferAnnotate {
         this.isCreating = false;
         this.startPoint = null;
       }
-    });
+    };
+
+    // 绑定事件监听器
+    this.leafer.on(DragEvent.START, this.eventHandlers.dragStart);
+    this.leafer.on(PointerEvent.TAP, this.eventHandlers.pointerTap);
+    this.leafer.editor.on(EditorEvent.SELECT, this.eventHandlers.editorSelect);
+    this.pageFrame.on(PointerEvent.DOWN, this.eventHandlers.pageFrameDown);
+    this.pageFrame.on(PointerEvent.MOVE, this.eventHandlers.pageFrameMove);
+    this.pageFrame.on(PointerEvent.UP, this.eventHandlers.pageFrameUp);
   }
   /**
    * 初始化接口中的标注矩形
@@ -396,7 +472,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
 
     this.dropHandler = (e: Event) => {
       e.preventDefault();
-      
+
       const dragEvent = e as globalThis.DragEvent;
       const shapeData = parseDragData(dragEvent.dataTransfer);
       if (!shapeData) return;
@@ -407,11 +483,11 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       const framePoint = this.roundPoint(
         this.pageFrame.getInnerPoint(worldPoint)
       );
-      
+
       // 计算初始位置（以framePoint为中心）
       const initialX = framePoint.x - shapeData.width / 2;
       const initialY = framePoint.y - shapeData.height / 2;
-      
+
       // 使用边界检查确保元素在frame内
       const { x: constrainedX, y: constrainedY } = this.constrainToFrameBounds(
         initialX,
@@ -448,7 +524,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       ...DEFAULT_SNAP_CONFIG,
       parentContainer: this.pageFrame,
     });
-     this.ruler = new Ruler(this.leafer, DEFAULT_RULER_CONFIG);
+    this.ruler = new Ruler(this.leafer, DEFAULT_RULER_CONFIG);
 
     this.snap.enable(true);
     this.ruler.enabled = true;
@@ -457,8 +533,29 @@ export class LeaferAnnotate implements ILeaferAnnotate {
 
 export const createLeaferAnnotate = async (
   config: LeaferAnnotateConfig
-): Promise<LeaferAnnotate> => {
-  const instance = new LeaferAnnotate(cloneDeep(config));
+): Promise<{
+  getInstance: () => LeaferAnnotate | null;
+  destroy: () => Promise<void>;
+}> => {
+  let instance: LeaferAnnotate | null = new LeaferAnnotate(cloneDeep(config));
   await instance.init();
-  return instance;
+  
+  let isDestroyed = false;
+  
+  return {
+    getInstance: function () {
+      if (isDestroyed) {
+        console.warn('LeaferAnnotate instance has been destroyed');
+        return null;
+      }
+      return instance;
+    },
+    destroy: async () => {
+      if (instance && !isDestroyed) {
+        await instance.destroy();
+        instance = null;
+        isDestroyed = true;
+      }
+    },
+  };
 };

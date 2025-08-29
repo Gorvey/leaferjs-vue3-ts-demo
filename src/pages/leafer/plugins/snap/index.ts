@@ -435,9 +435,11 @@ export class Snap {
    * 清理事件监听和渲染元素
    */
   public destroy(): void {
+    this.detachEvents()
     this.clear()
     this.cachedSnaps.forEach(group => group.length = 0)
     this.isSnapping = false
+    this.isEnabled = false
   }
 
   /**

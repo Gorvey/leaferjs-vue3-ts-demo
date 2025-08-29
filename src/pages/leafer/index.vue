@@ -7,8 +7,10 @@ import { type IUI } from 'leafer-ui'
 import type { IMark } from './leafer.type'
 import pageinfo from '../../api/pageinfo.json'
 import markList from '../../api/marklist.json'
+import markList2 from '../../api/marklist2.json'
 
 let instance = shallowRef<ILeaferAnnotate | null>(null)
+let manager = shallowRef<{getInstance: () => ILeaferAnnotate | null, destroy: () => Promise<void>}>()
 provide('leafer-instance', instance)
 let marks = reactive([...(markList as IMark[])])
 // 1. 创建一个更新触发器
@@ -20,31 +22,38 @@ const forceUpdateList = () => {
 }
 
 const list = computed(() => {
-  // 2. 让 computed 依赖于触发器
   listUpdateTrigger.value
-  console.log('Computed list is recalculating...') // 添加日志方便调试
-
-  if (instance.value === null) return []
-  return instance.value.pageFrame.find('.mark').map((v) => v.proxyData)
+  
+  if (!instance.value?.pageFrame) return []
+  
+  try {
+    return instance.value.pageFrame.find('.mark').map((v) => v.proxyData)
+  } catch (error) {
+    console.error('获取标记列表时出错:', error)
+    return []
+  }
 })
 
 onMounted(async () => {
-  await nextTick()
-  instance.value = await createLeaferAnnotate({
-    view: 'leafer-container',
-    pageUrl: pageinfo.url,
-    marks: marks,
-    onElementSelect: (element: IUI) => {
-      console.log('onElementAdd', element)
-    },
-    onElementAdd: (element: IUI) => {
-      console.log('onElementAdd', element)
-      // 元素添加后也触发更新
-      forceUpdateList()
-    },
-  })
-  // 实例创建完成后，手动触发一次更新以确保初始列表正确
-  forceUpdateList()
+  try {
+    await nextTick()
+    manager.value = await createLeaferAnnotate({
+      view: 'leafer-container',
+      pageUrl: pageinfo.url,
+      marks: marks,
+      onElementSelect: (element: IUI) => {
+        console.log('onElementSelect', element)
+      },
+      onElementAdd: (element: IUI) => {
+        console.log('onElementAdd', element)
+        forceUpdateList()
+      },
+    })
+    instance.value = manager.value?.getInstance()
+    forceUpdateList()
+  } catch (error) {
+    console.error('初始化实例时出错:', error)
+  }
 })
 
 // const onDel = (item: IMark) => {
@@ -60,50 +69,74 @@ onMounted(async () => {
 // }
 
 const onDestroy = async () => {
-  if (instance.value) {
-    await instance.value.destroy()
-    await nextTick()
-    let children = document.querySelector('#leafer-container')?.children
-    if (children) {
-      for (let i = 0; i < children.length; i++) {
-        children[i].remove()
+  if (manager.value) {
+    try {
+      await manager.value.destroy()
+      manager.value = undefined
+      instance.value = null
+      
+      await nextTick()
+      
+      const container = document.querySelector('#leafer-container')
+      if (container) {
+        container.innerHTML = ''
       }
+      
+      forceUpdateList()
+    } catch (error) {
+      console.error('销毁实例时出错:', error)
     }
-    await nextTick()
+  }
+}
 
-    instance.value = null
-   
-    
-    // 重置触发器
-    forceUpdateList()
+const onSwitchData = async () => {
+  try {
+    if (instance.value) {
+      // 使用新的updateData函数切换数据
+      await instance.value.updateData(pageinfo.url, markList2 as IMark[])
+      
+      // 更新本地marks数组
+      marks.length = 0
+      marks.push(...(markList2 as IMark[]))
+      
+      forceUpdateList()
+      console.log('数据切换成功')
+    }
+  } catch (error) {
+    console.error('切换数据时出错:', error)
   }
 }
 
 const onSet = async () => {
-  await onDestroy()
-  // 等待一小段时间确保销毁完成
-  await new Promise(resolve => setTimeout(resolve, 100))
-  
-  instance.value = await createLeaferAnnotate({
-    view: 'leafer-container',
-    pageUrl: pageinfo.url,
-    marks: marks,
-    onElementSelect: (element: IUI) => {
-      console.log('onElementAdd', element)
-    },
-    onElementAdd: (element: IUI) => {
-      console.log('onElementAdd', element)
-      // 元素添加后也触发更新
-      forceUpdateList()
-    },
-  })
-  // 重新创建后触发更新
-  forceUpdateList()
+  try {
+    await onDestroy()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    manager.value = await createLeaferAnnotate({
+      view: 'leafer-container',
+      pageUrl: pageinfo.url,
+      marks: marks,
+      onElementSelect: (element: IUI) => {
+        console.log('onElementSelect', element)
+      },
+      onElementAdd: (element: IUI) => {
+        console.log('onElementAdd', element)
+        forceUpdateList()
+      },
+    })
+    instance.value = manager.value?.getInstance()
+    forceUpdateList()
+  } catch (error) {
+    console.error('重新创建实例时出错:', error)
+  }
 }
 
-// 组件卸载时清理
-onUnmounted( () => {
-   onDestroy()
+onUnmounted(async () => {
+  try {
+    await onDestroy()
+  } catch (error) {
+    console.error('组件卸载时清理出错:', error)
+  }
 })
 </script>
 
@@ -117,16 +150,18 @@ onUnmounted( () => {
     <div class="table">
       <div @click="onDestroy">销毁</div>
       <div @click="onSet">设置</div>
-
-      <div v-for="value in list" :key="value!.id">
-        <span>ID: {{ value!.id }}</span>
-        <input type="number" v-model.number="value!.x" />
-        <input type="number" v-model.number="value!.y" />
-        <input type="number" v-model.number="value!.width" />
-        <input type="number" v-model.number="value!.height" />
-        <input type="text" v-model="value!.data!.createTime" />
-      </div>
+      <div @click="onSwitchData">切换数据</div>
     </div>
+      <table>
+        <tr v-for="value in list" :key="value!.id">
+      <span>ID: {{ value!.id }}</span>
+      <input type="number" v-model.number="value!.x" />
+      <input type="number" v-model.number="value!.y" />
+      <input type="number" v-model.number="value!.width" />
+      <input type="number" v-model.number="value!.height" />
+      <input type="text" v-model="value!.data!.createTime" />
+      </tr>
+    </table>
   </div>
 </template>
 
@@ -140,7 +175,7 @@ onUnmounted( () => {
 .main-content {
   display: flex;
   flex-direction: column;
-  width: 600px;
+  width: 800px;
   height: 100%;
 }
 

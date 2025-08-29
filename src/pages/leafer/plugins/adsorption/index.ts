@@ -22,7 +22,7 @@ export class AdsorptionBinding {
    * 网格尺寸
    */
   private _app!: App;
-
+  private _boundPropertyHandler!: (e: PropertyEvent) => void;
 
   /**
    * 加载服务
@@ -31,16 +31,20 @@ export class AdsorptionBinding {
    */
   public install(app: App) {
     this._app = app;
+    this._boundPropertyHandler = this.onPropertyEvent.bind(this);
     //监听tree层图元更改事件
-    this._app.tree.on(PropertyEvent.CHANGE, this.onPropertyEvent.bind(this));
+    this._app.tree.on(PropertyEvent.CHANGE, this._boundPropertyHandler);
   }
 
   /**
    * 卸载服务
    */
   public uninstall() {
-  
-    this._app.tree.off(PropertyEvent.CHANGE, this.onPropertyEvent.bind(this));
+    if (this._app?.tree && this._boundPropertyHandler) {
+      this._app.tree.off(PropertyEvent.CHANGE, this._boundPropertyHandler);
+    }
+    this._boundPropertyHandler = null as any;
+    this._app = null as any;
   }
 
 
