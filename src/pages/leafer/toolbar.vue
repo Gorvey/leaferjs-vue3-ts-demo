@@ -82,8 +82,8 @@ const onDragStart = (event: DragEvent, shape: ShapeItem) => {
     empty.src = 'data:image/png;base64,iVBORw0KGgo=';
     event.dataTransfer.setDragImage(empty, 0, 0);
 
-    const scale = instance.value.leafer?.zoomLayer.scaleX || 1;
-    const w = shape.width * scale;
+    const scale = instance.value.app?.zoomLayer.scaleX || 1;
+    const w = shape.width  * scale;
     const h = shape.height * scale;
 
     const sil = document.getElementById('dragSilhouette')!;
@@ -134,6 +134,7 @@ const onDragEnd = (event: DragEvent) => {
   border: 1px solid #ccc;
   border-radius: 4px;
   background-color: #f5f5f5;
+  box-sizing: border-box;
 }
 
 .tool-buttons {

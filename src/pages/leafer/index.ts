@@ -179,7 +179,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       ...DEFAULT_SNAP_CONFIG,
       parentContainer: this.pageFrame,
     });
-    this.ruler = new Ruler(this.app, DEFAULT_RULER_CONFIG);
+    // this.ruler = new Ruler(this.app, DEFAULT_RULER_CONFIG);
 
     // 精确控制元素，x,y,width,height在1px单位步进变化,去除小数点
     this.adsorptionBinding = new AdsorptionBinding();
@@ -190,12 +190,12 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     // 按住ctrl复制矩形
     this.copyRectBinding = new CopyRectBinding();
     this.copyRectBinding.install(this, "mark");
-    // 创建矩形
+    // 创建矩形工具
     this.createRectBinding = new CreateRectBinding();
     this.createRectBinding.install(this);
 
     this.snap.enable(true);
-    this.ruler.enabled = true;
+    // this.ruler.enabled = true;
   }
 }
 
