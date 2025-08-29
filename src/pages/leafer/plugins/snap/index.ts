@@ -260,14 +260,7 @@ export class Snap {
     }
     const targetPoints = getElementBoundPoints(target, this.app.tree!)
 
-    // const forSnap = calculateSnap(
-    //   targetPoints,
-    //   [
-    //     ...this.snapLines,
-    //     ...this.snapLines4SpacingBoxes,
-    //   ],
-    //   this.config.snapSize,
-    // )
+
 
     const forDrawLine = calculateSnap(
       targetPoints,
@@ -275,11 +268,6 @@ export class Snap {
       this.config.snapSize,
     )
 
-    // // 应用吸附偏移（使用智能scale模式）
-    // this.applySmartSnapOffset(target, {
-    //   x: selectBestLineCollision(forSnap.x),
-    //   y: selectBestLineCollision(forSnap.y),
-    // })
 
     // 渲染吸附线
     if (this.config.showLine && (forDrawLine.x.length || forDrawLine.y.length)) {
@@ -435,11 +423,9 @@ export class Snap {
    * 清理事件监听和渲染元素
    */
   public destroy(): void {
-    this.detachEvents()
     this.clear()
     this.cachedSnaps.forEach(group => group.length = 0)
     this.isSnapping = false
-    this.isEnabled = false
   }
 
   /**
@@ -534,29 +520,29 @@ export class Snap {
     })
   }
 
-  /**
-   * 手动应用吸附偏移
-   * 用于非编辑器元素（如previewRect）的吸附偏移应用
-   * @param target 目标元素
-   * @param snapResult X轴和Y轴的碰撞结果
-   */
-  private applyManualSnapOffset(target: IUI, snapResult: {
-    x: LineCollisionResult | null
-    y: LineCollisionResult | null
-  }): void {
-    if (this.isKeyEvent)
-      return
+  // /**
+  //  * 手动应用吸附偏移
+  //  * 用于非编辑器元素（如previewRect）的吸附偏移应用
+  //  * @param target 目标元素
+  //  * @param snapResult X轴和Y轴的碰撞结果
+  //  */
+  // private applyManualSnapOffset(target: IUI, snapResult: {
+  //   x: LineCollisionResult | null
+  //   y: LineCollisionResult | null
+  // }): void {
+  //   if (this.isKeyEvent)
+  //     return
     
-    function handle(ui: any, axis: any, snap: LineCollisionResult) {
-      ui[axis] = ui[axis] - snap.offset
-    }
+  //   function handle(ui: any, axis: any, snap: LineCollisionResult) {
+  //     ui[axis] = ui[axis] - snap.offset
+  //   }
     
-    Object.entries(snapResult).forEach(([axis, snap]) => {
-      if (snap) {
-        handle(target, axis, snap)
-      }
-    })
-  }
+  //   Object.entries(snapResult).forEach(([axis, snap]) => {
+  //     if (snap) {
+  //       handle(target, axis, snap)
+  //     }
+  //   })
+  // }
 
   /**
    * 渲染吸附线和距离标签

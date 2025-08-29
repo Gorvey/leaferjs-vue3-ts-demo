@@ -1,18 +1,11 @@
-import {
-  App,
-  Image,
-  Frame,
-  Rect,
-  DragEvent,
-  PointerEvent,
-  Resource,
-} from "leafer-ui";
+import { App, Image, Frame, Resource } from "leafer-ui";
 import { AdsorptionBinding } from "./leafer.adsorption.ts";
 import { DropBinding } from "./leafer.drop.ts";
+import { CopyRectBinding } from "./leafer.copyRect.ts";
+import { CreateRectBinding } from "./leafer.createRect.ts";
 import "./leafer.proxyData.ts";
 import type { IFrame } from "leafer-ui";
 import "@leafer-in/editor";
-import { EditorEvent } from "@leafer-in/editor";
 import "@leafer-in/viewport";
 import "@leafer-in/view";
 import "@leafer-in/state";
@@ -24,15 +17,10 @@ import { cloneDeep } from "lodash";
 import {
   loadImage,
   processMarksToRects,
-  createRect,
   DEFAULT_LEAFER_CONFIG,
   DEFAULT_SNAP_CONFIG,
   DEFAULT_RULER_CONFIG,
-  calculateRectBounds,
-  createElementData,
-  isValidRectSize,
   configureInteractionMode,
-  roundPoint,
 } from "./leafer.helper.ts";
 import type {
   LeaferAnnotateConfig,
@@ -45,78 +33,19 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   app!: App;
   pageFrame!: IFrame;
   private mode: "view" | "edit" = "view";
-  private isCreating = false;
-  private startPoint: { x: number; y: number } | null = null;
-  private isElementSelected = false;
-  private previewRect: Rect | null = null;
-  private snap!: Snap;
+  snap!: Snap;
   private adsorptionBinding!: AdsorptionBinding;
   private dropBinding!: DropBinding;
-  private ruler: Ruler | null = null;
-
-  // 事件处理器引用存储
-  private eventHandlers = {
-    dragStart: null as ((e: any) => void) | null,
-    pointerTap: null as ((e: any) => void) | null,
-    editorSelect: null as (() => void) | null,
-    pageFrameDown: null as ((e: any) => void) | null,
-    pageFrameMove: null as ((e: any) => void) | null,
-    pageFrameUp: null as ((e: any) => void) | null,
-  };
-
-
+  private copyRectBinding!: CopyRectBinding;
+  private createRectBinding!: CreateRectBinding;
+  private ruler!: Ruler;
 
   constructor(config: LeaferAnnotateConfig) {
     this.config = cloneDeep(config);
-    this.isElementSelected = false;
-    this.startPoint = null;
-    this.isCreating = false;
-    this.previewRect = null;
-
-    // 初始化事件处理器引用
-    Object.keys(this.eventHandlers).forEach((key) => {
-      (this.eventHandlers as any)[key] = null;
-    });
   }
   public async destroy(): Promise<void> {
     // 清理资源
     Resource.destroy();
-    // 清理预览矩形
-    if (this.previewRect) {
-      this.previewRect.remove();
-      this.previewRect = null;
-    }
-
-    // 精确移除所有事件监听器
-    if (this.app && this.eventHandlers.dragStart) {
-      this.app.off(DragEvent.START, this.eventHandlers.dragStart);
-    }
-    if (this.app && this.eventHandlers.pointerTap) {
-      this.app.off(PointerEvent.TAP, this.eventHandlers.pointerTap);
-    }
-    if (this.app?.editor && this.eventHandlers.editorSelect) {
-      this.app.editor.off(
-        EditorEvent.SELECT,
-        this.eventHandlers.editorSelect
-      );
-    }
-    if (this.pageFrame && this.eventHandlers.pageFrameDown) {
-      this.pageFrame.off(PointerEvent.DOWN, this.eventHandlers.pageFrameDown);
-    }
-    if (this.pageFrame && this.eventHandlers.pageFrameMove) {
-      this.pageFrame.off(PointerEvent.MOVE, this.eventHandlers.pageFrameMove);
-    }
-    if (this.pageFrame && this.eventHandlers.pageFrameUp) {
-      this.pageFrame.off(PointerEvent.UP, this.eventHandlers.pageFrameUp);
-    }
-
-    // 清理事件处理器引用
-    this.eventHandlers.dragStart = null;
-    this.eventHandlers.pointerTap = null;
-    this.eventHandlers.editorSelect = null;
-    this.eventHandlers.pageFrameDown = null;
-    this.eventHandlers.pageFrameMove = null;
-    this.eventHandlers.pageFrameUp = null;
 
     // 注销插件
     if (this.snap) {
@@ -131,27 +60,30 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       this.dropBinding.uninstall();
       this.dropBinding = null as any;
     }
+    if (this.copyRectBinding) {
+      this.copyRectBinding.uninstall();
+      this.copyRectBinding = null as any;
+    }
+    if (this.createRectBinding) {
+      this.createRectBinding.uninstall();
+      this.createRectBinding = null as any;
+    }
     if (this.ruler) {
       this.ruler.enabled = false;
-      this.ruler = null;
+      this.ruler = null as any;
     }
 
-    // 清理页面框架（在销毁leafer之前）
     if (this.pageFrame) {
       this.pageFrame.removeAll();
       this.pageFrame = null as any;
     }
 
-    // 销毁画布（最后执行）
     if (this.app) {
       await this.app.destroy(true);
       this.app = null as any;
     }
 
-    // 清理所有引用
-    this.startPoint = null;
-    this.isCreating = false;
-    this.isElementSelected = false;
+    this.config = null as any;
 
     return;
   }
@@ -166,9 +98,6 @@ export class LeaferAnnotate implements ILeaferAnnotate {
 
     // 设置图片和标记
     await this.setupImageAndMarks(pageUrl, marks);
-
-    // 绑定事件
-    this.bindEvent();
 
     // 启用插件
     this.bindPlugins();
@@ -213,29 +142,6 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   }
 
   /**
-   * 更新数据，切换图片和标记
-   * @param pageUrl 新的页面图片URL
-   * @param marks 新的标记数据
-   */
-  async updateData(pageUrl: string, marks: IMark[]): Promise<void> {
-    if (!this.app) {
-      throw new Error("Leafer实例未初始化");
-    }
-
-    // 清除当前的pageFrame
-    if (this.pageFrame) {
-      this.pageFrame.removeAll();
-      this.pageFrame.remove();
-    }
-
-    // 重新设置图片和标记
-    await this.setupImageAndMarks(pageUrl, marks);
-
-    // 更新配置
-    this.config.pageUrl = pageUrl;
-    this.config.marks = marks;
-  }
-  /**
    * 切换模式
    *
    * view: 可以缩放，移动页面，可以编辑元素
@@ -256,132 +162,6 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     }
   }
 
-  private bindEvent() {
-    // 创建并存储事件处理器引用
-    this.eventHandlers.dragStart = (e) => {
-      if (e.target.className !== "mark") return;
-      if (e.ctrlKey && e.left) {
-        const rect = e.target;
-        const clonedRect = rect.clone({
-          x: rect.x,
-          y: rect.y,
-          data: {},
-        });
-
-        // 交换业务数据
-        const originalData = rect.data;
-        const clonedData = clonedRect.data;
-        rect.data = clonedData;
-        clonedRect.data = originalData;
-
-        this.pageFrame.add(clonedRect);
-        if (this.config?.onElementAdd) {
-          this.config.onElementAdd(clonedRect);
-        }
-      }
-    };
-
-    this.eventHandlers.pointerTap = (e) => {
-      if (e.target.className === "mark") {
-        if (this.config?.onElementSelect) {
-          this.config.onElementSelect(e);
-        }
-      }
-    };
-
-    this.eventHandlers.editorSelect = () => {
-      if (this.app.editor.target) {
-        this.isElementSelected = true;
-      } else {
-        this.isElementSelected = false;
-      }
-    };
-
-    this.eventHandlers.pageFrameDown = (e) => {
-      if (this.isElementSelected) return;
-      this.isCreating = true;
-      this.startPoint = roundPoint(this.pageFrame.getLocalPoint(e));
-    };
-
-    this.eventHandlers.pageFrameMove = (e) => {
-      if (this.isElementSelected) return;
-      if (this.isCreating && this.startPoint) {
-        const currentPoint = roundPoint(this.pageFrame.getLocalPoint(e));
-        const { x, y, width, height } = calculateRectBounds(
-          this.startPoint,
-          currentPoint
-        );
-
-        if (isValidRectSize(width, height)) {
-          if (!this.previewRect) {
-            this.previewRect = createRect({
-              id: "preview-rect",
-              x,
-              y,
-              width,
-              height,
-            });
-            this.pageFrame.add(this.previewRect);
-            // 触发吸附计算
-            this.snap.triggerSnap(this.previewRect);
-          } else {
-            this.previewRect.set({ x, y, width, height });
-            // 触发吸附计算
-            this.snap.triggerSnap(this.previewRect);
-          }
-        } else if (this.previewRect) {
-          this.previewRect.remove();
-          this.previewRect = null;
-          // 清除吸附线
-          this.snap.destroy();
-        }
-      }
-    };
-
-    this.eventHandlers.pageFrameUp = (e) => {
-      if (this.isElementSelected) return;
-      if (this.isCreating && this.startPoint) {
-        const currentPoint = roundPoint(this.pageFrame.getLocalPoint(e));
-        const { x, y, width, height } = calculateRectBounds(
-          this.startPoint,
-          currentPoint
-        );
-
-        if (this.previewRect) {
-          this.previewRect.remove();
-          this.previewRect = null;
-        }
-
-        // 清除吸附线
-        this.snap.destroy();
-
-        if (isValidRectSize(width, height)) {
-          const rect = createRect({
-            x,
-            y,
-            width,
-            height,
-            data: createElementData("rect"),
-          });
-          this.pageFrame.add(rect);
-          if (this.config?.onElementAdd) {
-            this.config.onElementAdd(rect);
-          }
-        }
-
-        this.isCreating = false;
-        this.startPoint = null;
-      }
-    };
-
-    // 绑定事件监听器
-    this.app.on(DragEvent.START, this.eventHandlers.dragStart);
-    this.app.on(PointerEvent.TAP, this.eventHandlers.pointerTap);
-    this.app.editor.on(EditorEvent.SELECT, this.eventHandlers.editorSelect);
-    this.pageFrame.on(PointerEvent.DOWN, this.eventHandlers.pageFrameDown);
-    this.pageFrame.on(PointerEvent.MOVE, this.eventHandlers.pageFrameMove);
-    this.pageFrame.on(PointerEvent.UP, this.eventHandlers.pageFrameUp);
-  }
   /**
    * 初始化接口中的标注矩形
    */
@@ -395,16 +175,24 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   }
 
   private bindPlugins(): void {
-    this.adsorptionBinding = new AdsorptionBinding();
-    this.adsorptionBinding.install(this.app);
-    this.dropBinding = new DropBinding();
-    this.dropBinding.install(this.app, this.pageFrame, ".leafer-container");
-
     this.snap = new Snap(this.app, {
       ...DEFAULT_SNAP_CONFIG,
       parentContainer: this.pageFrame,
     });
     this.ruler = new Ruler(this.app, DEFAULT_RULER_CONFIG);
+
+    // 精确控制元素，x,y,width,height在1px单位步进变化,去除小数点
+    this.adsorptionBinding = new AdsorptionBinding();
+    this.adsorptionBinding.install(this.app);
+    // 在画布上拖拽图元
+    this.dropBinding = new DropBinding();
+    this.dropBinding.install(this.app, this.pageFrame, ".leafer-container");
+    // 按住ctrl复制矩形
+    this.copyRectBinding = new CopyRectBinding();
+    this.copyRectBinding.install(this, "mark");
+    // 创建矩形
+    this.createRectBinding = new CreateRectBinding();
+    this.createRectBinding.install(this);
 
     this.snap.enable(true);
     this.ruler.enabled = true;

@@ -1,147 +1,211 @@
-import { App, type IFrame } from "leafer-ui";
+import { PointerEvent, Rect, type IUI } from "leafer-ui";
+import { EditorEvent } from "@leafer-in/editor";
+import type { ILeaferAnnotate } from "./leafer.type";
 import {
-  getCanvasElement,
-  parseDragData,
-  roundPoint,
+  calculateRectBounds,
   createRect,
   createElementData,
+  isValidRectSize,
+  roundPoint,
 } from "./leafer.helper";
 
 /**
- * 拖拽
+ * 创建矩形
  */
 export class CreateRectBinding {
-  private _app!: App;
-  private _pageFrame!: IFrame;
-  private canvasElement!: HTMLElement;
-  private _boundDragOverHandler!: (e: Event) => void;
-  private _boundDropHandler!: (e: DragEvent) => void;
+  private _instance!: ILeaferAnnotate;
+  private isCreating = false;
+  private startPoint: { x: number; y: number } | null = null;
+  private isElementSelected = false;
+  private previewRect: Rect | null = null;
+
+  private eventHandlers = {
+    pointerTap: null as ((e: PointerEvent) => void) | null,
+    editorSelect: null as (() => void) | null,
+    pageFrameDown: null as ((e: PointerEvent) => void) | null,
+    pageFrameMove: null as ((e: PointerEvent) => void) | null,
+    pageFrameUp: null as ((e: PointerEvent) => void) | null,
+  };
+
   /**
    * 加载服务
-   * @param app 容器
-   * @param gridSize 网格尺寸
    */
-  public install(app: App, pageFrame: IFrame, selector: string) {
-    this._app = app;
-    this._pageFrame = pageFrame;
-    this.canvasElement = getCanvasElement(selector);
-    if (!this.canvasElement) {
-      throw new Error("canvasElement is not found");
-    }
-    this._boundDragOverHandler = this.onDragOver.bind(this);
-    this._boundDropHandler = this.onDrop.bind(this);
-
-    //监听tree层图元更改事件
-    this.canvasElement.addEventListener("dragover", this._boundDragOverHandler);
-    this.canvasElement.addEventListener("drop", this._boundDropHandler);
+  public install(instance: ILeaferAnnotate) {
+    this._instance = instance;
+    this.bindEvents();
   }
 
   /**
    * 卸载服务
    */
   public uninstall() {
-    if (
-      this.canvasElement &&
-      this._boundDragOverHandler &&
-      this._boundDropHandler
-    ) {
-      this.canvasElement.removeEventListener(
-        "dragover",
-        this._boundDragOverHandler
-      );
-      this.canvasElement.removeEventListener("drop", this._boundDropHandler);
+    this.unbindEvents();
+
+    if (this.previewRect) {
+      this.previewRect.remove();
+      this.previewRect = null;
     }
-    this._boundDragOverHandler = null as any;
-    this._boundDropHandler = null as any;
-    this.canvasElement = null as any;
-    this._app = null as any;
+
+    this.startPoint = null;
+    this.isCreating = false;
+    this.isElementSelected = false;
+    this._instance = null as unknown as ILeaferAnnotate;
   }
 
-  private onDragOver(e: Event) {
-    e.preventDefault();
-  }
-  /**
-   * 确保元素位置在frame边界内
-   */
-  private constrainToFrameBounds(
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ): { x: number; y: number } {
-    const frameWidth = this._pageFrame.width ?? 0;
-    const frameHeight = this._pageFrame.height ?? 0;
-
-    let constrainedX = x;
-    let constrainedY = y;
-
-    // 如果frame尺寸无效，返回原坐标
-    if (frameWidth <= 0 || frameHeight <= 0) {
-      return { x: constrainedX, y: constrainedY };
-    }
-
-    // 如果元素宽度大于frame宽度，将其居左放置
-    if (width >= frameWidth) {
-      constrainedX = 0;
-    } else {
-      // 确保左边界不超出
-      if (constrainedX < 0) {
-        constrainedX = 0;
+  private bindEvents() {
+    this.eventHandlers.pointerTap = (e) => {
+      if (e.target.className === "mark") {
+        if (this._instance.config?.onElementSelect) {
+          this._instance.config.onElementSelect(e.target as IUI);
+        }
       }
-      // 确保右边界不超出
-      if (constrainedX + width > frameWidth) {
-        constrainedX = frameWidth - width;
+    };
+
+    this.eventHandlers.editorSelect = () => {
+      if (this._instance.app.editor.target) {
+        this.isElementSelected = true;
+      } else {
+        this.isElementSelected = false;
       }
-    }
+    };
 
-    // 如果元素高度大于frame高度，将其居顶放置
-    if (height >= frameHeight) {
-      constrainedY = 0;
-    } else {
-      // 确保上边界不超出
-      if (constrainedY < 0) {
-        constrainedY = 0;
+    this.eventHandlers.pageFrameDown = (e) => {
+      if (this.isElementSelected) return;
+      this.isCreating = true;
+      this.startPoint = roundPoint(this._instance.pageFrame.getLocalPoint(e));
+    };
+
+    this.eventHandlers.pageFrameMove = (e) => {
+      if (this.isElementSelected) return;
+      if (this.isCreating && this.startPoint) {
+        const currentPoint = roundPoint(
+          this._instance.pageFrame.getLocalPoint(e)
+        );
+        const { x, y, width, height } = calculateRectBounds(
+          this.startPoint,
+          currentPoint
+        );
+
+        if (isValidRectSize(width, height)) {
+          if (!this.previewRect) {
+            this.previewRect = createRect({
+              id: "preview-rect",
+              x,
+              y,
+              width,
+              height,
+            });
+            this._instance.pageFrame.add(this.previewRect);
+            if (this._instance.snap) {
+              this._instance.snap.triggerSnap(this.previewRect);
+            }
+          } else {
+            this.previewRect.set({ x, y, width, height });
+            if (this._instance.snap) {
+              this._instance.snap.triggerSnap(this.previewRect);
+            }
+          }
+        } else if (this.previewRect) {
+          this.previewRect.remove();
+          this.previewRect = null;
+          if (this._instance.snap) {
+            this._instance.snap.destroy();
+          }
+        }
       }
-      // 确保下边界不超出
-      if (constrainedY + height > frameHeight) {
-        constrainedY = frameHeight - height;
+    };
+
+    this.eventHandlers.pageFrameUp = (e) => {
+      if (this.isElementSelected) return;
+      if (this.isCreating && this.startPoint) {
+        const currentPoint = roundPoint(
+          this._instance.pageFrame.getLocalPoint(e)
+        );
+        const { x, y, width, height } = calculateRectBounds(
+          this.startPoint,
+          currentPoint
+        );
+
+        if (this.previewRect) {
+          this.previewRect.remove();
+          this.previewRect = null;
+        }
+
+        if (this._instance.snap) {
+          this._instance.snap.destroy();
+        }
+
+        if (isValidRectSize(width, height)) {
+          const rect = createRect({
+            x,
+            y,
+            width,
+            height,
+            data: createElementData("rect"),
+          });
+          this._instance.pageFrame.add(rect);
+          if (this._instance.config?.onElementAdd) {
+            this._instance.config.onElementAdd(rect);
+          }
+        }
+
+        this.isCreating = false;
+        this.startPoint = null;
       }
-    }
+    };
 
-    return { x: constrainedX, y: constrainedY };
-  }
-  private onDrop(e: DragEvent) {
-    e.preventDefault();
-    const dragEvent = e as globalThis.DragEvent;
-    const shapeData = parseDragData(dragEvent.dataTransfer);
-    if (!shapeData) return;
-
-    // 将浏览器坐标转换为世界坐标
-    const worldPoint = this._app.getWorldPointByClient(dragEvent);
-    // 将世界坐标转换为frame内坐标
-    const framePoint = roundPoint(this._pageFrame.getInnerPoint(worldPoint));
-
-    // 计算初始位置（以framePoint为中心）
-    const initialX = framePoint.x - shapeData.width / 2;
-    const initialY = framePoint.y - shapeData.height / 2;
-
-    // 使用边界检查确保元素在frame内
-    const { x: constrainedX, y: constrainedY } = this.constrainToFrameBounds(
-      initialX,
-      initialY,
-      shapeData.width,
-      shapeData.height
+    this._instance.app.on(PointerEvent.TAP, this.eventHandlers.pointerTap);
+    this._instance.app.editor.on(
+      EditorEvent.SELECT,
+      this.eventHandlers.editorSelect
     );
+    this._instance.pageFrame.on(
+      PointerEvent.DOWN,
+      this.eventHandlers.pageFrameDown
+    );
+    this._instance.pageFrame.on(
+      PointerEvent.MOVE,
+      this.eventHandlers.pageFrameMove
+    );
+    this._instance.pageFrame.on(
+      PointerEvent.UP,
+      this.eventHandlers.pageFrameUp
+    );
+  }
 
-    // 根据类型创建图形
-    const shape = createRect({
-      x: constrainedX,
-      y: constrainedY,
-      width: shapeData.width,
-      height: shapeData.height,
-      lockRatio: true,
-      data: createElementData(shapeData.type),
-    });
-    this._pageFrame.add(shape);
+  private unbindEvents() {
+    if (this._instance.app && this.eventHandlers.pointerTap) {
+      this._instance.app.off(PointerEvent.TAP, this.eventHandlers.pointerTap);
+    }
+    if (this._instance.app?.editor && this.eventHandlers.editorSelect) {
+      this._instance.app.editor.off(
+        EditorEvent.SELECT,
+        this.eventHandlers.editorSelect
+      );
+    }
+    if (this._instance.pageFrame && this.eventHandlers.pageFrameDown) {
+      this._instance.pageFrame.off(
+        PointerEvent.DOWN,
+        this.eventHandlers.pageFrameDown
+      );
+    }
+    if (this._instance.pageFrame && this.eventHandlers.pageFrameMove) {
+      this._instance.pageFrame.off(
+        PointerEvent.MOVE,
+        this.eventHandlers.pageFrameMove
+      );
+    }
+    if (this._instance.pageFrame && this.eventHandlers.pageFrameUp) {
+      this._instance.pageFrame.off(
+        PointerEvent.UP,
+        this.eventHandlers.pageFrameUp
+      );
+    }
+
+    this.eventHandlers.pointerTap = null;
+    this.eventHandlers.editorSelect = null;
+    this.eventHandlers.pageFrameDown = null;
+    this.eventHandlers.pageFrameMove = null;
+    this.eventHandlers.pageFrameUp = null;
   }
 }

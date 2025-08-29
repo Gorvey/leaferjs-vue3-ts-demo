@@ -52,6 +52,7 @@ export interface ILeaferAnnotate {
   config: LeaferAnnotateConfig
   app: App
   pageFrame: IFrame
+  snap?: any
 
   init(): Promise<void>
   delElement(id: string): void
