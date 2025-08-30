@@ -86,21 +86,24 @@ export class CreateRectBinding {
           currentPoint
         );
 
-        if (isValidRectSize(width, height)) {
+        const limitedWidth = Math.min(width, this._instance.limitWidth);
+        const limitedHeight = Math.min(height, this._instance.limitHeight);
+        
+        if (isValidRectSize(limitedWidth, limitedHeight)) {
           if (!this.previewRect) {
             this.previewRect = createRect({
               id: "preview-rect",
               x,
               y,
-              width,
-              height,
+              width: limitedWidth,
+              height: limitedHeight,
             });
             this._instance.pageFrame.add(this.previewRect);
             if (this._instance.snap) {
               this._instance.snap.triggerSnap(this.previewRect);
             }
           } else {
-            this.previewRect.set({ x, y, width, height });
+            this.previewRect.set({ x, y, width: limitedWidth, height: limitedHeight });
             if (this._instance.snap) {
               this._instance.snap.triggerSnap(this.previewRect);
             }
@@ -135,12 +138,15 @@ export class CreateRectBinding {
           this._instance.snap.destroy();
         }
 
-        if (isValidRectSize(width, height)) {
+        const limitedWidth = Math.min(width, this._instance.limitWidth);
+        const limitedHeight = Math.min(height, this._instance.limitHeight);
+        
+        if (isValidRectSize(limitedWidth, limitedHeight)) {
           const rect = createRect({
             x,
             y,
-            width,
-            height,
+            width: limitedWidth,
+            height: limitedHeight,
             data: createElementData("rect"),
           });
           this._instance.pageFrame.add(rect);

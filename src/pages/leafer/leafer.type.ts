@@ -53,7 +53,9 @@ export interface ILeaferAnnotate {
   app: App
   pageFrame: IFrame
   snap?: any
-
+  limitWidth: number
+  limitHeight: number
+  resetView(): void
   init(): Promise<void>
   delElement(id: string): void
   destroy(): Promise<void>

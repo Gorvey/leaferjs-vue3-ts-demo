@@ -32,8 +32,10 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   config: LeaferAnnotateConfig;
   app!: App;
   pageFrame!: IFrame;
-  private mode: "view" | "edit" = "view";
   snap!: Snap;
+  limitWidth!: number;
+  limitHeight!: number;
+  private mode: "view" | "edit" = "view";
   private adsorptionBinding!: AdsorptionBinding;
   private dropBinding!: DropBinding;
   private copyRectBinding!: CopyRectBinding;
@@ -106,6 +108,9 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     this.changeMode("view");
   }
 
+  public resetView(): void {
+    this.app.tree?.zoom("fit-width", 0);
+  }
   /**
    * 设置图片和标记
    */
@@ -123,7 +128,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     });
 
     this.app.tree?.add(this.pageFrame);
-    this.app.zoom("fit-width", 12);
+    this.app.zoom("fit-width", 0);
     this.pageFrame.add(new Image({ url: url, width: width, height: height }));
 
     // 初始化标注
@@ -179,7 +184,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
       ...DEFAULT_SNAP_CONFIG,
       parentContainer: this.pageFrame,
     });
-    // this.ruler = new Ruler(this.app, DEFAULT_RULER_CONFIG);
+    this.ruler = new Ruler(this.app, DEFAULT_RULER_CONFIG);
 
     // 精确控制元素，x,y,width,height在1px单位步进变化,去除小数点
     this.adsorptionBinding = new AdsorptionBinding();
@@ -195,7 +200,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     this.createRectBinding.install(this);
 
     this.snap.enable(true);
-    // this.ruler.enabled = true;
+    this.ruler.enabled = true;
   }
 }
 

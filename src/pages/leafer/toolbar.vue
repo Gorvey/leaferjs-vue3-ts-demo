@@ -26,6 +26,11 @@
         {{ shape.name }} ({{ shape.width }}x{{ shape.height }})
       </div>
     </div>
+    <div>
+      <input type="number" v-model="width" placeholder="宽度限制" />
+      <input type="number" v-model="height" placeholder="高度限制" />
+    </div>
+    <div @click="resetView">重置视图</div>
     <div class="silhouette">
       <div id="dragSilhouette"></div>
     </div>
@@ -33,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject,  } from 'vue';
+import { ref, inject, watch  } from 'vue';
 import type { ShallowRef } from 'vue'
 import type { ILeaferAnnotate, ActiveTool } from './leafer.type'
 
@@ -47,7 +52,18 @@ interface ShapeItem {
 
 const instance = inject<ShallowRef<ILeaferAnnotate | null>>('leafer-instance')
 const activeTool = ref('rect');
-
+const width = ref(0);
+const height = ref(0);
+watch(width, (newVal) => {
+  if (instance && instance.value) {
+  instance.value!.limitWidth = newVal;
+  }
+});
+watch(height, (newVal) => {
+  if (instance && instance.value) {
+    instance.value!.limitHeight = newVal;
+  }
+});
 const shapeList = ref<ShapeItem[]>([
   { id: 'rect-small', name: '小矩形', type: 'rect', width: 50, height: 50 },
   { id: 'rect-medium', name: '中矩形', type: 'rect', width: 200, height: 100 },
@@ -123,6 +139,11 @@ const onDragEnd = (event: DragEvent) => {
   }
 };
 
+const resetView = () => {
+  if (instance && instance.value) {
+    instance.value.resetView();
+  }
+};
 
 </script>
 
