@@ -38,6 +38,7 @@ export const DEFAULT_LEAFER_CONFIG = {
 
 export const DEFAULT_SNAP_CONFIG = {
   lineColor: "#0088ff",
+  snapSize: 10,
   showEqualSpacingBoxes: true,
 };
 
@@ -64,7 +65,7 @@ export const MIN_RECT_SIZE = 5;
 /**
  * 四舍五入坐标点到整数
  * @param point 坐标点
- * 
+ *
  * @example
  * const point = { x: 1.2, y: 2.5 };
  * const roundedPoint = roundPoint(point);
