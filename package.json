@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@gorvey/leafer-x-easy-snap": "^1.20.1",
+    "@leafer-in/animate": "^1.9.5",
     "@leafer-in/editor": "^1.9.4",
     "@leafer-in/find": "^1.9.4",
     "@leafer-in/flow": "^1.9.4",
@@ -25,6 +26,8 @@
     "leafer-vue": "^3.1.1",
     "leafer-x-easy-snap": "^1.10.0",
     "leafer-x-ruler": "^2.0.0",
+    "leafer-x-tooltip": "^1.2.7",
+    "leafer-x-tooltip-canvas": "^1.0.1",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "vue": "^3.5.18"

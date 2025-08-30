@@ -11,6 +11,9 @@ importers:
       '@gorvey/leafer-x-easy-snap':
         specifier: ^1.20.1
         version: 1.20.1
+      '@leafer-in/animate':
+        specifier: ^1.9.5
+        version: 1.9.5(@leafer-in/color@1.9.5(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
       '@leafer-in/editor':
         specifier: ^1.9.4
         version: 1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/core@1.9.4)(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
@@ -56,6 +59,12 @@ importers:
       leafer-x-ruler:
         specifier: ^2.0.0
         version: 2.0.0(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/draw@1.9.4)
+      leafer-x-tooltip:
+        specifier: ^1.2.7
+        version: 1.2.7
+      leafer-x-tooltip-canvas:
+        specifier: ^1.0.1
+        version: 1.0.1(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -262,6 +271,21 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@leafer-in/animate@1.9.5':
+    resolution: {integrity: sha512-lAc/e1EfWSYwfXqLxvSfdv65kMKls3Bf8zkWCJL7AisgeuibTx0Py7P8XT9u+ZDhGZf7mOVx0jGOyKR7C+UC8A==}
+    peerDependencies:
+      '@leafer-in/color': ^1.9.5
+      '@leafer-in/interface': ^1.9.5
+      '@leafer-ui/draw': ^1.9.5
+      '@leafer-ui/interface': ^1.9.5
+
+  '@leafer-in/color@1.9.5':
+    resolution: {integrity: sha512-gDX8JRAG+BB4WNCpJBLXwStVcfDKwoLcZgiDPiYHlA5FcpBR2gB6MT9z8zpbh9jc9Z+dYW6x0twUUd3LiJFLaw==}
+    peerDependencies:
+      '@leafer-in/interface': ^1.9.5
+      '@leafer-ui/draw': ^1.9.5
+      '@leafer-ui/interface': ^1.9.5
 
   '@leafer-in/editor@1.9.4':
     resolution: {integrity: sha512-LMICMc4ZePCigGgibvD8bFv6nsbGT/f6BA60rTo6d7lpyvOsvKKYtdUOLuJ1l7FsaY70EuZRxK03CWknVS/98Q==}
@@ -688,6 +712,12 @@ packages:
   leafer-x-ruler@2.0.0:
     resolution: {integrity: sha512-4uEtGYS/tOqXc74TzF83tM7zKK7rmPmzEFgmM6halx+tnsaBhsjT4kD/yeRbsPq4eQc85L9ViiDPzymRuxInSw==}
 
+  leafer-x-tooltip-canvas@1.0.1:
+    resolution: {integrity: sha512-brweqF0xZLOYhFGHDX25cW17g0mZz+dtcFF+WsB27PPgjQ0epjNd++2NZLmdFUzl+laYPBBphnxHHR2gowVy+w==}
+
+  leafer-x-tooltip@1.2.7:
+    resolution: {integrity: sha512-VXPygHSb8EOimvJw1YdCIBgy6LaJydL7DrDxIRl0xBHNqJuKKdvet7rx4LQidbwSaMjdzmmHCLyiCayiZd8h9g==}
+
   lodash-es@4.17.21:
     resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
 
@@ -890,6 +920,19 @@ snapshots:
   '@gorvey/leafer-x-easy-snap@1.20.1': {}
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@leafer-in/animate@1.9.5(@leafer-in/color@1.9.5(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)':
+    dependencies:
+      '@leafer-in/color': 1.9.5(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
+      '@leafer-in/interface': 1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4)
+      '@leafer-ui/draw': 1.9.4
+      '@leafer-ui/interface': 1.9.4
+
+  '@leafer-in/color@1.9.5(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)':
+    dependencies:
+      '@leafer-in/interface': 1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4)
+      '@leafer-ui/draw': 1.9.4
+      '@leafer-ui/interface': 1.9.4
 
   '@leafer-in/editor@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/core@1.9.4)(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)':
     dependencies:
@@ -1458,6 +1501,22 @@ snapshots:
       - '@leafer-in/interface'
       - '@leafer-in/resize'
       - '@leafer-ui/draw'
+
+  leafer-x-tooltip-canvas@1.0.1(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4):
+    dependencies:
+      '@leafer-in/flow': 1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-in/resize@1.9.4(@leafer-in/interface@1.9.4(@leafer-ui/interface@1.9.4)(@leafer/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4))(@leafer-ui/draw@1.9.4)(@leafer-ui/interface@1.9.4)
+      '@leafer-ui/core': 1.9.4
+      leafer-ui: 1.9.4
+    transitivePeerDependencies:
+      - '@leafer-in/interface'
+      - '@leafer-in/resize'
+      - '@leafer-ui/draw'
+      - '@leafer-ui/interface'
+
+  leafer-x-tooltip@1.2.7:
+    dependencies:
+      '@leafer-ui/core': 1.9.4
+      '@leafer-ui/interface': 1.9.4
 
   lodash-es@4.17.21: {}
 

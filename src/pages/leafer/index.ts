@@ -11,6 +11,7 @@ import "@leafer-in/view";
 import "@leafer-in/state";
 import "@leafer-in/resize";
 import "@leafer-in/find";
+import "@leafer-in/animate";
 import { Ruler } from "leafer-x-ruler";
 import { Snap } from "./plugins/snap/index.ts";
 import { cloneDeep } from "lodash";
@@ -109,7 +110,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
   }
 
   public resetView(): void {
-    this.app.tree?.zoom("fit-width", 0);
+    this.app.tree?.zoom("fit-width", [12 + 20, 12, 12, 12 + 20], false, true);
   }
   /**
    * 设置图片和标记
@@ -128,7 +129,7 @@ export class LeaferAnnotate implements ILeaferAnnotate {
     });
 
     this.app.tree?.add(this.pageFrame);
-    this.app.zoom("fit-width", 0);
+    this.app.tree?.zoom("fit-width", [12 + 20, 12, 12, 12 + 20]);
     this.pageFrame.add(new Image({ url: url, width: width, height: height }));
 
     // 初始化标注

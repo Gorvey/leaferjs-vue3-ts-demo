@@ -1,7 +1,6 @@
 import { App, PropertyEvent, UI } from "leafer-ui";
 import { assign } from "./leafer.helper";
 
-
 /**
  * 吸附服务,控制移动图元时是否自动吸附功能
  */
@@ -32,8 +31,6 @@ export class AdsorptionBinding {
     this._app = null as any;
   }
 
-
-
   private onPropertyEvent(e: PropertyEvent) {
     //仅处理x,y,width,height属性更改事件
     if (
@@ -51,8 +48,7 @@ export class AdsorptionBinding {
     let v: number;
     let size: number = 1;
 
-
-        v = Math.round((e.newValue as number) / size) * size;
+    v = Math.round((e.newValue as number) / size) * size;
 
     let o: UI = e.target as UI;
     assign(o, e.attrName, v);

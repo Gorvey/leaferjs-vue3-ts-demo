@@ -1,59 +1,71 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, shallowRef, ref, reactive, provide } from 'vue'
-import Toolbar from './toolbar.vue'
-import { createLeaferAnnotate } from '.'
-import type { ILeaferAnnotate } from './leafer.type'
-import { type IUI } from 'leafer-ui'
-import type { IMark } from './leafer.type'
-import pageinfo from '../../api/pageinfo.json'
-import markList from '../../api/marklist.json'
+import {
+  nextTick,
+  onMounted,
+  onUnmounted,
+  shallowRef,
+  ref,
+  reactive,
+  provide,
+  computed,
+} from "vue";
+import Toolbar from "./toolbar.vue";
+import { createLeaferAnnotate } from ".";
+import type { ILeaferAnnotate } from "./leafer.type";
+import { type IUI } from "leafer-ui";
+import type { IMark } from "./leafer.type";
+import pageinfo from "../../api/pageinfo.json";
+import markList from "../../api/marklist.json";
 
-let instance = shallowRef<ILeaferAnnotate | null>(null)
-let manager = shallowRef<{getInstance: () => ILeaferAnnotate | null, destroy: () => Promise<void>}>()
-provide('leafer-instance', instance)
-let marks = reactive([...(markList as IMark[])])
+let instance = shallowRef<ILeaferAnnotate | null>(null);
+let manager = shallowRef<{
+  getInstance: () => ILeaferAnnotate | null;
+  destroy: () => Promise<void>;
+}>();
+provide("leafer-instance", instance);
+let marks = reactive([...(markList as IMark[])]);
 // 1. 创建一个更新触发器
-let listUpdateTrigger = ref(0)
+let listUpdateTrigger = ref(0);
 
 // 辅助函数，用于强制更新 list
 const forceUpdateList = () => {
-  listUpdateTrigger.value++
-}
+  listUpdateTrigger.value++;
+};
 
-// const list = computed(() => {
-//   listUpdateTrigger.value
-  
-//   if (!instance.value?.pageFrame) return []
-  
-//   try {
-//     return instance.value.pageFrame.find('.mark').map((v) => v.proxyData)
-//   } catch (error) {
-//     console.error('获取标记列表时出错:', error)
-//     return []
-//   }
-// })
+const list = computed(() => {
+  listUpdateTrigger.value;
+
+  if (!instance.value?.pageFrame) return [];
+
+  try {
+    return instance.value.pageFrame.find(".mark").map((v) => v.proxyData);
+  } catch (error) {
+    console.error("获取标记列表时出错:", error);
+    return [];
+  }
+});
 
 onMounted(async () => {
   try {
-    await nextTick()
+    await nextTick();
     manager.value = await createLeaferAnnotate({
-      view: 'leafer-container',
+      view: "leafer-container",
       pageUrl: pageinfo.url,
       marks: marks,
       onElementSelect: (element: IUI) => {
-        console.log('onElementSelect', element)
+        console.log("onElementSelect", element);
       },
       onElementAdd: (element: IUI) => {
-        console.log('onElementAdd', element)
-        forceUpdateList()
+        console.log("onElementAdd", element);
+        forceUpdateList();
       },
-    })
-    instance.value = manager.value?.getInstance()
-    forceUpdateList()
+    });
+    instance.value = manager.value?.getInstance();
+    forceUpdateList();
   } catch (error) {
-    console.error('初始化实例时出错:', error)
+    console.error("初始化实例时出错:", error);
   }
-})
+});
 
 // const onDel = (item: IMark) => {
 //   // 先从leafer中删除元素
@@ -70,57 +82,55 @@ onMounted(async () => {
 const onDestroy = async () => {
   if (manager.value) {
     try {
-      await manager.value.destroy()
-      manager.value = undefined
-      instance.value = null
-      
-      await nextTick()
-      
-      const container = document.querySelector('#leafer-container')
+      await manager.value.destroy();
+      manager.value = undefined;
+      instance.value = null;
+
+      await nextTick();
+
+      const container = document.querySelector("#leafer-container");
       if (container) {
-        container.innerHTML = ''
+        container.innerHTML = "";
       }
-      
-      forceUpdateList()
+
+      forceUpdateList();
     } catch (error) {
-      console.error('销毁实例时出错:', error)
+      console.error("销毁实例时出错:", error);
     }
   }
-}
-
-
+};
 
 const onSet = async () => {
   try {
-    await onDestroy()
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
+    await onDestroy();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     manager.value = await createLeaferAnnotate({
-      view: 'leafer-container',
+      view: "leafer-container",
       pageUrl: pageinfo.url,
       marks: marks,
       onElementSelect: (element: IUI) => {
-        console.log('onElementSelect', element)
+        console.log("onElementSelect", element);
       },
       onElementAdd: (element: IUI) => {
-        console.log('onElementAdd', element)
-        forceUpdateList()
+        console.log("onElementAdd", element);
+        forceUpdateList();
       },
-    })
-    instance.value = manager.value?.getInstance()
-    forceUpdateList()
+    });
+    instance.value = manager.value?.getInstance();
+    forceUpdateList();
   } catch (error) {
-    console.error('重新创建实例时出错:', error)
+    console.error("重新创建实例时出错:", error);
   }
-}
+};
 
 onUnmounted(async () => {
   try {
-    await onDestroy()
+    await onDestroy();
   } catch (error) {
-    console.error('组件卸载时清理出错:', error)
+    console.error("组件卸载时清理出错:", error);
   }
-})
+});
 </script>
 
 <template>
@@ -128,13 +138,19 @@ onUnmounted(async () => {
     <div class="main-content">
       <div class="leafer-container" id="leafer-container"></div>
       <Toolbar />
-      
     </div>
     <div class="table">
       <div @click="onDestroy">销毁</div>
       <div @click="onSet">设置</div>
     </div>
-
+    <table class="table">
+      <tr v-for="item in list" :key="item.id">
+        <td><input type="number" v-model="item.x" /></td>
+        <td><input type="number" v-model="item.y" /></td>
+        <td><input type="number" v-model="item.width" /></td>
+        <td><input type="number" v-model="item.height" /></td>
+      </tr>
+    </table>
   </div>
 </template>
 
